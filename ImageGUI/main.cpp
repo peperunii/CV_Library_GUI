@@ -8,6 +8,7 @@
 #include <QLabel>
 #include <math.h>
 #include <string.h>
+#include <QMessageBox>
 
 #include "CV_Library.h"
 
@@ -15,8 +16,15 @@ struct Image ScaledImage;
 struct Image InputImage;
 struct Image ScaledImage2;
 struct Image AppliedImage;
-int ListOperations [700][2];
+int ListOperations [700][6];
+int MousePos_X, MousePos_y;
+int CtrlKeyPressed;
+int NeighborCoefficients  = 0;
+int Radius = 0;
+int Aggression = 1;
+float RedGamma = 1, GreenGamma = 1, BlueGamma = 1;
 int CurrentOperationNumber;
+
 QString Filename;
 
 MainWindow::MainWindow(QWidget *parent) :
@@ -24,9 +32,11 @@ MainWindow::MainWindow(QWidget *parent) :
     ui(new Ui::MainWindow)
 {
     ui->setupUi(this);
+    setMouseTracking(true);
+
     ui->BrightnessSlider->setDisabled(TRUE);
     ui->checkBox_1->setDisabled(TRUE);
-    ui->checkBox_2->setDisabled(TRUE);
+    ui->MoveTogetherCheckBox->setDisabled(TRUE);
     ui->BlurImageSlider->setDisabled(TRUE);
     ui->ContrastSlider->setDisabled(TRUE);
     ui->verticalSlider_4->setDisabled(TRUE);
@@ -40,6 +50,12 @@ MainWindow::MainWindow(QWidget *parent) :
     ui->pushButton->setDisabled(TRUE);
     ui->pushButton_2->setDisabled(TRUE);
     ui->pushButton_3->setDisabled(TRUE);
+    ListOperations[0][1] = 0;
+    ListOperations[0][0] = 0;
+    ListOperations[0][2] = 0;
+    ListOperations[0][3] = 0;
+    ListOperations[0][4] = 0;
+    CtrlKeyPressed = 0;
 }
 
 MainWindow::~MainWindow()
@@ -47,12 +63,322 @@ MainWindow::~MainWindow()
     delete ui;
 }
 
+void MainWindow::keyPressEvent(QKeyEvent *event)
+{
+    if(event->key() == Qt::Key_Control)
+    {
+        CtrlKeyPressed = 1;
+    }
+}
+void MainWindow::keyReleaseEvent(QKeyEvent *event)
+{
+    if(event->key() == Qt::Key_Control)
+    {
+        CtrlKeyPressed = 0;
+    }
+}
+
+void MainWindow::mousePressEvent(QMouseEvent *event)
+{
+    MousePos_X = event->x();
+    MousePos_y = event->y();
+    //printf("%d %d\n",MousePos_X, MousePos_y);
+
+    //Check if the CTRL key is pressed
+    if(CtrlKeyPressed == 1)
+    {
+        struct point_xy poi;
+        //Check if the MousePos is in the image area
+        if(MousePos_X >=10 && MousePos_X <= (ui->label_9->width()+10) && MousePos_y >=10 && MousePos_y <=  (ui->label_9->height()+10))
+        {
+            poi.X = MousePos_X - 10;
+            poi.Y = MousePos_y - 10;
+
+            SetDestination(&ScaledImage, &ScaledImage2);
+
+            struct Image Scaled_3Channels = CreateNewImage(&Scaled_3Channels, ScaledImage.Width, ScaledImage.Height,3,3);
+            //convert from 4-channel ScaledImage to 3Channels - Scaled_3Channels
+            Convert4ChannelsTo3Channels(&ScaledImage, &Scaled_3Channels);
+
+            Scaled_3Channels.ColorSpace = 2;
+            struct Image Destination = CreateNewImage_BasedOnPrototype(&Scaled_3Channels, &Destination);
+
+            //BlurImageAroundPoint(&channel3_Image, &channel3_Image2, poi, ListOperations[i][3], ListOperations[i][4], 1, 50 );
+            BlurImageAroundPoint(&Scaled_3Channels,&Destination, poi, NeighborCoefficients, Radius, 1, Aggression );
+
+            Convert3ChannelsTo4Channels(&Destination, &ScaledImage2);
+
+            QImage Dest = QImage(ScaledImage2.rgbpix, ScaledImage2.Width, ScaledImage2.Height,  QImage::Format_RGB32);
+            QPixmap pixmapObject;
+            pixmapObject.convertFromImage(Dest);
+            ui->label_9->setPixmap(pixmapObject);
+
+            if(ListOperations[CurrentOperationNumber - 1][0] != 6)
+            {
+                ListOperations[CurrentOperationNumber][0] = 6;
+                ListOperations[CurrentOperationNumber][1] = poi.X;
+                ListOperations[CurrentOperationNumber][2] = poi.Y;
+                ListOperations[CurrentOperationNumber][3] = NeighborCoefficients;
+                ListOperations[CurrentOperationNumber][4] = Radius;
+                ListOperations[CurrentOperationNumber++][5] = Aggression;
+            }
+            else
+            {
+                ListOperations[CurrentOperationNumber-1][1] = poi.X;
+                ListOperations[CurrentOperationNumber-1][2] = poi.Y;
+                ListOperations[CurrentOperationNumber-1][3] = NeighborCoefficients;
+                ListOperations[CurrentOperationNumber-1][4] = Radius;
+                ListOperations[CurrentOperationNumber-1][5] = Aggression;
+            }
+            if(ui->ApplyCheckBox->isChecked())
+            {
+                on_pushButton_clicked();
+            }
+        }
+    }
+}
+
 void MainWindow::on_graphicsView_rubberBandChanged(const QRect &viewportRect, const QPointF &fromScenePoint, const QPointF &toScenePoint)
 {
 
 }
 
-// ACTION 1
+/*DETECT MOUSE action */
+void label_9::mouseMoveEvent(QMouseEvent *ev)
+{
+    this->x = ev->x();
+    this->y = ev->y();
+    emit Mouse_Pos();
+}
+
+void label_9::mousePressEvent(QMouseEvent *ev)
+{
+    emit Mouse_Pressed();
+    MousePos_X = ev->x();
+    MousePos_y = ev->y();
+    //printf("%d %d\n",MousePos_X, MousePos_y);
+
+
+}
+
+void label_9::leaveEvent(QEvent *)
+{
+    emit Mouse_Left();
+}
+/*
+void Mouse_Pressed();
+void Mouse_Pos();
+void Mouse_Left();
+*/
+
+void MainWindow:: on_spinBox_valueChanged(int arg1)
+{
+    NeighborCoefficients = arg1;
+}
+
+void MainWindow::on_spinBox_2_valueChanged(int arg1)
+{
+    Radius = arg1;
+}
+
+
+/* RADIO BUTTONS - choose image scale */
+void MainWindow::on_radioButton_clicked()  // 3/2 format
+{
+    /* if there is a loaded image - ask user if he want to continue and to reset the image */
+    if(ui->ContrastSlider->isEnabled())
+    {
+        QMessageBox msgBox;
+        msgBox.setText("To change the preview, you have to reset the image.");
+        //msgBox.setInformativeText("Do you want to continue?");
+        msgBox.setStandardButtons(QMessageBox::Yes | QMessageBox::No);
+        msgBox.setDefaultButton(QMessageBox::Yes);
+        int ret = msgBox.exec();
+        switch (ret)
+        {
+            case QMessageBox::Yes:
+                // Yes was clicked
+                ui->radioButton_2->setChecked(FALSE);
+                ui->radioButton_3->setChecked(FALSE);
+                ui->radioButton_4->setChecked(FALSE);
+                ui->label_9->setFixedWidth(400);
+                ui->label_9->setFixedHeight(266);
+                ui->ImageWindow->setFixedWidth(420);
+                ui->ImageWindow->setFixedHeight(286);
+
+                on_pushButton_4_clicked(); // Load Image in the new preview format
+
+            break;
+            case QMessageBox::No:
+            // No was clicked - Do nothing
+            break;
+        }
+  }
+    else
+    {
+       ui->radioButton_2->setChecked(FALSE);
+       ui->radioButton_3->setChecked(FALSE);
+       ui->radioButton_4->setChecked(FALSE);
+       ui->label_9->setFixedWidth(400);
+       ui->label_9->setFixedHeight(266);
+       ui->ImageWindow->setFixedWidth(420);
+       ui->ImageWindow->setFixedHeight(286);
+   }
+}
+
+void MainWindow::on_radioButton_2_clicked() // 4/3
+{
+    /* if there is a loaded image - ask user if he want to continue and to reset the image */
+    if(ui->ContrastSlider->isEnabled())
+    {
+        QMessageBox msgBox;
+        msgBox.setText("To change the preview, you have to reset the image.");
+        //msgBox.setInformativeText("Do you want to continue?");
+        msgBox.setStandardButtons(QMessageBox::Yes | QMessageBox::No);
+        msgBox.setDefaultButton(QMessageBox::Yes);
+        int ret = msgBox.exec();
+        switch (ret)
+        {
+            case QMessageBox::Yes:
+                // Yes was clicked
+                ui->radioButton->setChecked(FALSE);
+                ui->radioButton_3->setChecked(FALSE);
+                ui->radioButton_4->setChecked(FALSE);
+                ui->label_9->setFixedWidth(400);
+                ui->label_9->setFixedHeight(300);
+                ui->ImageWindow->setFixedWidth(420);
+                ui->ImageWindow->setFixedHeight(320);
+
+                on_pushButton_4_clicked(); // Load Image in the new preview format
+
+            break;
+            case QMessageBox::No:
+            // No was clicked - Do nothing
+            break;
+        }
+  }
+    else
+    {
+        ui->radioButton->setChecked(FALSE);
+        ui->radioButton_3->setChecked(FALSE);
+        ui->radioButton_4->setChecked(FALSE);
+        ui->label_9->setFixedWidth(400);
+        ui->label_9->setFixedHeight(300);
+        ui->ImageWindow->setFixedWidth(420);
+        ui->ImageWindow->setFixedHeight(320);
+   }
+}
+
+void MainWindow::on_radioButton_3_clicked() // 16/9
+{
+
+    /* if there is a loaded image - ask user if he want to continue and to reset the image */
+    if(ui->ContrastSlider->isEnabled())
+    {
+        QMessageBox msgBox;
+        msgBox.setText("To change the preview, you have to reset the image.");
+        //msgBox.setInformativeText("Do you want to continue?");
+        msgBox.setStandardButtons(QMessageBox::Yes | QMessageBox::No);
+        msgBox.setDefaultButton(QMessageBox::Yes);
+        int ret = msgBox.exec();
+        switch (ret)
+        {
+            case QMessageBox::Yes:
+                // Yes was clicked
+                ui->radioButton_2->setChecked(FALSE);
+                ui->radioButton->setChecked(FALSE);
+                ui->radioButton_4->setChecked(FALSE);
+                ui->label_9->setFixedWidth(450);
+                ui->label_9->setFixedHeight(300);
+                ui->ImageWindow->setFixedWidth(470);
+                ui->ImageWindow->setFixedHeight(320);
+
+                ui->radioButton->setGeometry(20,350,41, 17);
+                ui->radioButton_2->setGeometry(80,350,41, 17);
+                ui->radioButton_3->setGeometry(130,350,41, 17);
+                ui->radioButton_4->setGeometry(190,350,81, 17);
+
+                on_pushButton_4_clicked(); // Load Image in the new preview format
+
+            break;
+            case QMessageBox::No:
+            // No was clicked - Do nothing
+            break;
+        }
+  }
+    else
+    {
+        ui->radioButton_2->setChecked(FALSE);
+        ui->radioButton->setChecked(FALSE);
+        ui->radioButton_4->setChecked(FALSE);
+        ui->label_9->setFixedWidth(450);
+        ui->label_9->setFixedHeight(300);
+        ui->ImageWindow->setFixedWidth(470);
+        ui->ImageWindow->setFixedHeight(320);
+
+        ui->radioButton->setGeometry(20,350,41, 17);
+        ui->radioButton_2->setGeometry(80,350,41, 17);
+        ui->radioButton_3->setGeometry(130,350,41, 17);
+        ui->radioButton_4->setGeometry(190,350,81, 17);
+   }
+}
+
+void MainWindow::on_radioButton_4_clicked()  // 3/4
+{
+    /* if there is a loaded image - ask user if he want to continue and to reset the image */
+    if(ui->ContrastSlider->isEnabled())
+    {
+        QMessageBox msgBox;
+        msgBox.setText("To change the preview, you have to reset the image.");
+        //msgBox.setInformativeText("Do you want to continue?");
+        msgBox.setStandardButtons(QMessageBox::Yes | QMessageBox::No);
+        msgBox.setDefaultButton(QMessageBox::Yes);
+        int ret = msgBox.exec();
+        switch (ret)
+        {
+            case QMessageBox::Yes:
+                // Yes was clicked
+                ui->radioButton_2->setChecked(FALSE);
+                ui->radioButton_3->setChecked(FALSE);
+                ui->radioButton->setChecked(FALSE);
+                ui->label_9->setFixedWidth(300);
+                ui->label_9->setFixedHeight(400);
+                ui->ImageWindow->setFixedWidth(320);
+                ui->ImageWindow->setFixedHeight(420);
+
+                ui->radioButton->setGeometry(335,39,41, 17);
+                ui->radioButton_2->setGeometry(335,59,41, 17);
+                ui->radioButton_3->setGeometry(335,79,41, 17);
+                ui->radioButton_4->setGeometry(335,99,81, 17);
+
+                on_pushButton_4_clicked(); // Load Image in the new preview format
+
+            break;
+            case QMessageBox::No:
+            // No was clicked - Do nothing
+            break;
+        }
+  }
+    else
+    {
+       ui->radioButton_2->setChecked(FALSE);
+       ui->radioButton_3->setChecked(FALSE);
+       ui->radioButton->setChecked(FALSE);
+       ui->label_9->setFixedWidth(300);
+       ui->label_9->setFixedHeight(400);
+       ui->ImageWindow->setFixedWidth(320);
+       ui->ImageWindow->setFixedHeight(420);
+
+       ui->radioButton->setGeometry(435,39,41, 17);
+       ui->radioButton_2->setGeometry(435,59,41, 17);
+       ui->radioButton_3->setGeometry(435,79,41, 17);
+       ui->radioButton_4->setGeometry(435,99,81, 17);
+   }
+}
+
+
+
+// ACTION 1 - BRIGHTNESS
 void MainWindow::on_BrightnessSlider_sliderMoved(int position)
 {
     SetDestination(&ScaledImage, &ScaledImage2);
@@ -80,9 +406,13 @@ void MainWindow::on_BrightnessSlider_sliderMoved(int position)
     }
     else
         ListOperations[CurrentOperationNumber-1][1] = position;
+    if(ui->ApplyCheckBox->isChecked())
+    {
+        on_pushButton_clicked();
+    }
 }
 
-// ACTION 2
+// ACTION 2 - CONTRAST
 void MainWindow::on_ContrastSlider_valueChanged(int value)
 {
     SetDestination(&ScaledImage, &ScaledImage2);
@@ -110,6 +440,10 @@ void MainWindow::on_ContrastSlider_valueChanged(int value)
     }
     else
         ListOperations[CurrentOperationNumber-1][1] = value;
+    if(ui->ApplyCheckBox->isChecked())
+    {
+        on_pushButton_clicked();
+    }
 }
 
 // ACTION 3 - White balance algorithm choose
@@ -193,13 +527,231 @@ void MainWindow::on_horizontalSlider_sliderMoved(int position)
     }
     else
         ListOperations[CurrentOperationNumber-1][1] = position;
+    if(ui->ApplyCheckBox->isChecked())
+    {
+        on_pushButton_clicked();
+    }
 }
 
+
+//ACTION 4 - SATURATION
+void MainWindow::on_verticalSlider_4_valueChanged(int value)
+{
+    SetDestination(&ScaledImage, &ScaledImage2);
+
+    struct Image Scaled_3Channels = CreateNewImage(&Scaled_3Channels, ScaledImage.Width, ScaledImage.Height,3,3);
+    //convert from 4-channel ScaledImage to 3Channels - Scaled_3Channels
+    Convert4ChannelsTo3Channels(&ScaledImage, &Scaled_3Channels);
+
+    Scaled_3Channels.ColorSpace = 2;
+    struct Image Destination = CreateNewImage_BasedOnPrototype(&Scaled_3Channels, &Destination);
+
+    Saturation(&Scaled_3Channels,&Destination,value);
+
+    Convert3ChannelsTo4Channels(&Destination, &ScaledImage2);
+
+    QImage Dest = QImage(ScaledImage2.rgbpix, ScaledImage2.Width, ScaledImage2.Height,  QImage::Format_RGB32);
+    QPixmap pixmapObject;
+    pixmapObject.convertFromImage(Dest);
+    ui->label_9->setPixmap(pixmapObject);
+
+    if(ListOperations[CurrentOperationNumber - 1][0] != 4)
+    {
+        ListOperations[CurrentOperationNumber][0] = 4;
+        ListOperations[CurrentOperationNumber++][1] = value;
+    }
+    else
+        ListOperations[CurrentOperationNumber-1][1] = value;
+    if(ui->ApplyCheckBox->isChecked())
+    {
+        on_pushButton_clicked();
+    }
+}
+
+
+// ACTION 5 - BLUR
+void MainWindow::on_BlurImageSlider_valueChanged(int value)
+{
+    Aggression = value;
+    SetDestination(&ScaledImage, &ScaledImage2);
+
+    struct Image Scaled_3Channels = CreateNewImage(&Scaled_3Channels, ScaledImage.Width, ScaledImage.Height,3,3);
+    //convert from 4-channel ScaledImage to 3Channels - Scaled_3Channels
+    Convert4ChannelsTo3Channels(&ScaledImage, &Scaled_3Channels);
+
+    Scaled_3Channels.ColorSpace = 2;
+    struct Image Destination = CreateNewImage_BasedOnPrototype(&Scaled_3Channels, &Destination);
+
+    BlurImageGussian(&Scaled_3Channels,&Destination, value, 1);
+
+    Convert3ChannelsTo4Channels(&Destination, &ScaledImage2);
+
+    QImage Dest = QImage(ScaledImage2.rgbpix, ScaledImage2.Width, ScaledImage2.Height,  QImage::Format_RGB32);
+    QPixmap pixmapObject;
+    pixmapObject.convertFromImage(Dest);
+    ui->label_9->setPixmap(pixmapObject);
+
+    if(ListOperations[CurrentOperationNumber - 1][0] != 5)
+    {
+        ListOperations[CurrentOperationNumber][0] = 5;
+        ListOperations[CurrentOperationNumber++][1] = value;
+    }
+    else
+        ListOperations[CurrentOperationNumber-1][1] = value;
+    if(ui->ApplyCheckBox->isChecked())
+    {
+        on_pushButton_clicked();
+    }
+}
+
+// ACTION 6 - Blur image around point - is defined around line 100;
+
+// ACTION 7 - GammaCorrection
+void MainWindow::on_horizontalSlider_3_valueChanged(int value)
+{
+    RedGamma = value / 10.0;
+    if(ui->MoveTogetherCheckBox->isChecked())
+    {
+        BlueGamma = RedGamma;
+        GreenGamma = RedGamma;
+        ui->horizontalSlider_4->setValue(value);
+        ui->horizontalSlider_7->setValue(value);
+    }
+    SetDestination(&ScaledImage, &ScaledImage2);
+
+    struct Image Scaled_3Channels = CreateNewImage(&Scaled_3Channels, ScaledImage.Width, ScaledImage.Height,3,3);
+    //convert from 4-channel ScaledImage to 3Channels - Scaled_3Channels
+    Convert4ChannelsTo3Channels(&ScaledImage, &Scaled_3Channels);
+
+    Scaled_3Channels.ColorSpace = 2;
+    struct Image Destination = CreateNewImage_BasedOnPrototype(&Scaled_3Channels, &Destination);
+
+    GammaCorrection(&Scaled_3Channels,&Destination, RedGamma, GreenGamma, BlueGamma);
+
+    Convert3ChannelsTo4Channels(&Destination, &ScaledImage2);
+
+    QImage Dest = QImage(ScaledImage2.rgbpix, ScaledImage2.Width, ScaledImage2.Height,  QImage::Format_RGB32);
+    QPixmap pixmapObject;
+    pixmapObject.convertFromImage(Dest);
+    ui->label_9->setPixmap(pixmapObject);
+
+    if(ListOperations[CurrentOperationNumber - 1][0] != 7)
+    {
+        ListOperations[CurrentOperationNumber][0] = 7;
+        ListOperations[CurrentOperationNumber][1] = RedGamma *10;
+        ListOperations[CurrentOperationNumber][2] = GreenGamma *10;
+        ListOperations[CurrentOperationNumber++][3] = BlueGamma *10;
+    }
+    else
+    {
+        ListOperations[CurrentOperationNumber-1][1] = RedGamma * 10;
+        ListOperations[CurrentOperationNumber-1][2] = GreenGamma * 10;
+        ListOperations[CurrentOperationNumber-1][3] = BlueGamma * 10;
+    }
+    if(ui->ApplyCheckBox->isChecked())
+    {
+        on_pushButton_clicked(); // APPLY
+    }
+}
+
+void MainWindow::on_horizontalSlider_4_valueChanged(int value)
+{
+    GreenGamma = value / 10.0;
+    if(ui->MoveTogetherCheckBox->isChecked())
+    {
+        BlueGamma = GreenGamma;
+        RedGamma = GreenGamma;
+        ui->horizontalSlider_3->setValue(value);
+        ui->horizontalSlider_7->setValue(value);
+    }
+    SetDestination(&ScaledImage, &ScaledImage2);
+
+    struct Image Scaled_3Channels = CreateNewImage(&Scaled_3Channels, ScaledImage.Width, ScaledImage.Height,3,3);
+    //convert from 4-channel ScaledImage to 3Channels - Scaled_3Channels
+    Convert4ChannelsTo3Channels(&ScaledImage, &Scaled_3Channels);
+
+    Scaled_3Channels.ColorSpace = 2;
+    struct Image Destination = CreateNewImage_BasedOnPrototype(&Scaled_3Channels, &Destination);
+
+    GammaCorrection(&Scaled_3Channels,&Destination, RedGamma, GreenGamma, BlueGamma);
+
+    Convert3ChannelsTo4Channels(&Destination, &ScaledImage2);
+
+    QImage Dest = QImage(ScaledImage2.rgbpix, ScaledImage2.Width, ScaledImage2.Height,  QImage::Format_RGB32);
+    QPixmap pixmapObject;
+    pixmapObject.convertFromImage(Dest);
+    ui->label_9->setPixmap(pixmapObject);
+
+    if(ListOperations[CurrentOperationNumber - 1][0] != 7)
+    {
+        ListOperations[CurrentOperationNumber][0] = 7;
+        ListOperations[CurrentOperationNumber][1] = RedGamma *10;
+        ListOperations[CurrentOperationNumber][2] = GreenGamma *10;
+        ListOperations[CurrentOperationNumber++][3] = BlueGamma *10;
+    }
+    else
+    {
+        ListOperations[CurrentOperationNumber-1][1] = RedGamma * 10;
+        ListOperations[CurrentOperationNumber-1][2] = GreenGamma * 10;
+        ListOperations[CurrentOperationNumber-1][3] = BlueGamma * 10;
+    }
+    if(ui->ApplyCheckBox->isChecked())
+    {
+        on_pushButton_clicked(); // APPLY
+    }
+}
+
+void MainWindow::on_horizontalSlider_7_valueChanged(int value)
+{
+    BlueGamma = value / 10.0;
+    if(ui->MoveTogetherCheckBox->isChecked())
+    {
+        GreenGamma = BlueGamma;
+        RedGamma = BlueGamma;
+        ui->horizontalSlider_3->setValue(value);
+        ui->horizontalSlider_4->setValue(value);
+
+    }
+    SetDestination(&ScaledImage, &ScaledImage2);
+
+    struct Image Scaled_3Channels = CreateNewImage(&Scaled_3Channels, ScaledImage.Width, ScaledImage.Height,3,3);
+    //convert from 4-channel ScaledImage to 3Channels - Scaled_3Channels
+    Convert4ChannelsTo3Channels(&ScaledImage, &Scaled_3Channels);
+
+    Scaled_3Channels.ColorSpace = 2;
+    struct Image Destination = CreateNewImage_BasedOnPrototype(&Scaled_3Channels, &Destination);
+
+    GammaCorrection(&Scaled_3Channels,&Destination, RedGamma, GreenGamma, BlueGamma);
+
+    Convert3ChannelsTo4Channels(&Destination, &ScaledImage2);
+
+    QImage Dest = QImage(ScaledImage2.rgbpix, ScaledImage2.Width, ScaledImage2.Height,  QImage::Format_RGB32);
+    QPixmap pixmapObject;
+    pixmapObject.convertFromImage(Dest);
+    ui->label_9->setPixmap(pixmapObject);
+
+    if(ListOperations[CurrentOperationNumber - 1][0] != 7)
+    {
+        ListOperations[CurrentOperationNumber][0] = 7;
+        ListOperations[CurrentOperationNumber][1] = RedGamma *10;
+        ListOperations[CurrentOperationNumber][2] = GreenGamma *10;
+        ListOperations[CurrentOperationNumber++][3] = BlueGamma *10;
+    }
+    else
+    {
+        ListOperations[CurrentOperationNumber-1][1] = RedGamma * 10;
+        ListOperations[CurrentOperationNumber-1][2] = GreenGamma * 10;
+        ListOperations[CurrentOperationNumber-1][3] = BlueGamma * 10;
+    }
+    if(ui->ApplyCheckBox->isChecked())
+    {
+        on_pushButton_clicked(); // APPLY
+    }
+}
+
+/////////////////////////////////////////////////////////////
 void MainWindow::on_pushButton_clicked() // APPLY
 {
-    //Input Image = Apply image = ScaledImage2
-    //memcpy(AppliedImage.rgbpix, ScaledImage2.rgbpix, ScaledImage2.Num_channels * ScaledImage2.Width * ScaledImage2.Height * sizeof(unsigned char));
-    //memcpy(InputImage.rgbpix, ScaledImage2.rgbpix, ScaledImage2.Num_channels * ScaledImage2.Width * ScaledImage2.Height * sizeof(unsigned char));
     memcpy(ScaledImage.rgbpix, ScaledImage2.rgbpix, ScaledImage2.Num_channels * ScaledImage2.Width * ScaledImage2.Height * sizeof(unsigned char));
 }
 
@@ -242,9 +794,15 @@ void MainWindow::on_pushButton_2_clicked() // RESET - //Reset to the previous AP
     QPixmap pixmapObject;
     pixmapObject.convertFromImage(ScaledIm);
     ui->label_9->setPixmap(pixmapObject);
+
     ui->BrightnessSlider->setSliderPosition(0);
     ui->ContrastSlider->setSliderPosition(0);
     ui->horizontalSlider->setSliderPosition(0);
+    ui->verticalSlider_4->setSliderPosition(0);
+    ui->BlurImageSlider->setSliderPosition(0);
+    ui->horizontalSlider_3->setValue(10);
+    ui->horizontalSlider_4->setValue(10);
+    ui->horizontalSlider_7->setValue(10);
 
     AppliedImage =  CreateNewImage_BasedOnPrototype(&InputImage, &AppliedImage);
     AppliedImage.rgbpix = (unsigned char *)malloc(4 * InputImage.Width * InputImage.Height * sizeof(unsigned char));
@@ -299,14 +857,19 @@ void MainWindow::on_pushButton_4_clicked() // LOAD
     ui->label_9->setPixmap(pixmapObject);
 
     CurrentOperationNumber = 1;
-    ui->BrightnessSlider->setSliderPosition(0);
-    ui->ContrastSlider->setSliderPosition(0);
-    ui->horizontalSlider->setSliderPosition(0);
+    ui->BrightnessSlider->setSliderPosition(0); //action 1 - Brightness
+    ui->ContrastSlider->setSliderPosition(0);   //action 2 - conrast
+    ui->horizontalSlider->setSliderPosition(0); //action 3 - white balance
+    ui->verticalSlider_4->setSliderPosition(0); //action 4 - Saturation
+    ui->BlurImageSlider->setSliderPosition(0);
+    ui->horizontalSlider_3->setValue(10);
+    ui->horizontalSlider_4->setValue(10);
+    ui->horizontalSlider_7->setValue(10);
 
     /* Enable all butons and sliders */
     ui->BrightnessSlider->setEnabled(TRUE);
     ui->checkBox_1->setEnabled(TRUE);
-    ui->checkBox_2->setEnabled(TRUE);
+    ui->MoveTogetherCheckBox->setEnabled(TRUE);
     ui->BlurImageSlider->setEnabled(TRUE);
     ui->ContrastSlider->setEnabled(TRUE);
     ui->verticalSlider_4->setEnabled(TRUE);
@@ -324,6 +887,7 @@ void MainWindow::on_pushButton_4_clicked() // LOAD
 
 void MainWindow::on_pushButton_3_clicked()  // SAVE
 {
+   struct point_xy poi;
    struct WhitePoint WhitePoint_lab1;
 
    struct Image channel3_Image = CreateNewImage(&channel3_Image, InputImage.Width, InputImage.Height,3,2);
@@ -331,21 +895,26 @@ void MainWindow::on_pushButton_3_clicked()  // SAVE
 
    SetWhiteBalanceValues(&WhitePoint_lab1, 7);
    Convert4ChannelsTo3Channels(&InputImage, &channel3_Image2);
-   for(int i = 1; i < CurrentOperationNumber+1; i++)
+
+
+   for(int i = 1; i < CurrentOperationNumber ; i++)
    {
-       if(ListOperations[i][0] == 1)
+       printf("funk %d, 1: %d, 2: %d, 3: %d, 4: %d, 5: %d \n", ListOperations[i][0], ListOperations[i][1], ListOperations[i][2], ListOperations[i][3], ListOperations[i][4], ListOperations[i][5]);
+       if(ListOperations[i][0] == 1) // BRIGHTNESS
        {
            if(i%2 == 0)
                BrightnessCorrection(&channel3_Image, &channel3_Image2, ListOperations[i][1],1);
            else
                BrightnessCorrection(&channel3_Image2, &channel3_Image, ListOperations[i][1],1);
        }
-       if(ListOperations[i][0] == 2)
+       else if(ListOperations[i][0] == 2) // CONTRAST
        {
-           if(i%2 == 0) ContrastCorrection(&channel3_Image, &channel3_Image2, ListOperations[i][1]);
-           else ContrastCorrection(&channel3_Image2, &channel3_Image, ListOperations[i][1]);
+           if(i%2 == 0)
+               ContrastCorrection(&channel3_Image, &channel3_Image2, ListOperations[i][1]);
+           else
+               ContrastCorrection(&channel3_Image2, &channel3_Image, ListOperations[i][1]);
        }
-       if(ListOperations[i][0] == 3)
+       else if(ListOperations[i][0] == 3) // WHITE BALANCE
        {
            if(i%2 == 0)
            {
@@ -369,6 +938,30 @@ void MainWindow::on_pushButton_3_clicked()  // SAVE
                else if(ListOperations[i][1] == 6)
                    WhiteBalanceGREENY(&channel3_Image2, &channel3_Image, WhitePoint_lab1);
            }
+       }
+       else if(ListOperations[i][0] == 4) // SATURATION
+       {
+           if(i%2 == 0)
+               Saturation(&channel3_Image, &channel3_Image2, ListOperations[i][1]);
+           else
+               Saturation(&channel3_Image2, &channel3_Image, ListOperations[i][1]);
+       }
+       else if(ListOperations[i][0] == 5) // BLUR - gaussian
+       {
+           if(i%2 == 0)
+               BlurImageGussian(&channel3_Image, &channel3_Image2, ListOperations[i][1], ListOperations[i][1]);
+           else
+               BlurImageGussian(&channel3_Image2, &channel3_Image, ListOperations[i][1], ListOperations[i][1]);
+       }
+       else if(ListOperations[i][0] == 6) // BLUR - around point
+       {
+           poi.X = ListOperations[i][1];
+           poi.Y = ListOperations[i][2];
+
+           if(i%2 == 0)
+               BlurImageAroundPoint(&channel3_Image, &channel3_Image2, poi, ListOperations[i][3], ListOperations[i][4], 1, ListOperations[i][5] );
+           else
+               BlurImageAroundPoint(&channel3_Image2, &channel3_Image, poi, ListOperations[i][3], ListOperations[i][4], 1, ListOperations[i][5] );
        }
    }
    if(CurrentOperationNumber % 2 == 0) Convert3ChannelsTo4Channels(&channel3_Image, &AppliedImage);

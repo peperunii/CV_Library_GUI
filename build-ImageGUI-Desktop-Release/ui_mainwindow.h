@@ -64,7 +64,7 @@ public:
     QLabel *label_5;
     QLabel *label_6;
     QLabel *label_7;
-    QCheckBox *MoveTogetherCheckBox;
+    QCheckBox *checkBox_2;
     QLabel *label_8;
     QLabel *label_9;
     QTextEdit *textEdit;
@@ -80,7 +80,6 @@ public:
     QLabel *label_13;
     QLabel *label_14;
     QLabel *label_15;
-    QCheckBox *ApplyCheckBox;
     QMenuBar *menuBar;
     QToolBar *mainToolBar;
     QStatusBar *statusBar;
@@ -200,25 +199,15 @@ public:
         line_5->setFrameShadow(QFrame::Sunken);
         horizontalSlider_3 = new QSlider(centralWidget);
         horizontalSlider_3->setObjectName(QStringLiteral("horizontalSlider_3"));
-        horizontalSlider_3->setGeometry(QRect(30, 550, 151, 19));
-        horizontalSlider_3->setMinimum(0);
-        horizontalSlider_3->setMaximum(30);
-        horizontalSlider_3->setSingleStep(1);
-        horizontalSlider_3->setValue(10);
+        horizontalSlider_3->setGeometry(QRect(30, 550, 91, 19));
         horizontalSlider_3->setOrientation(Qt::Horizontal);
         horizontalSlider_4 = new QSlider(centralWidget);
         horizontalSlider_4->setObjectName(QStringLiteral("horizontalSlider_4"));
-        horizontalSlider_4->setGeometry(QRect(30, 570, 151, 19));
-        horizontalSlider_4->setMinimum(0);
-        horizontalSlider_4->setMaximum(30);
-        horizontalSlider_4->setValue(10);
+        horizontalSlider_4->setGeometry(QRect(30, 570, 91, 19));
         horizontalSlider_4->setOrientation(Qt::Horizontal);
         horizontalSlider_7 = new QSlider(centralWidget);
         horizontalSlider_7->setObjectName(QStringLiteral("horizontalSlider_7"));
-        horizontalSlider_7->setGeometry(QRect(30, 590, 151, 19));
-        horizontalSlider_7->setMinimum(0);
-        horizontalSlider_7->setMaximum(30);
-        horizontalSlider_7->setValue(10);
+        horizontalSlider_7->setGeometry(QRect(30, 590, 91, 19));
         horizontalSlider_7->setOrientation(Qt::Horizontal);
         label_5 = new QLabel(centralWidget);
         label_5->setObjectName(QStringLiteral("label_5"));
@@ -229,9 +218,9 @@ public:
         label_7 = new QLabel(centralWidget);
         label_7->setObjectName(QStringLiteral("label_7"));
         label_7->setGeometry(QRect(16, 590, 51, 20));
-        MoveTogetherCheckBox = new QCheckBox(centralWidget);
-        MoveTogetherCheckBox->setObjectName(QStringLiteral("MoveTogetherCheckBox"));
-        MoveTogetherCheckBox->setGeometry(QRect(200, 570, 101, 17));
+        checkBox_2 = new QCheckBox(centralWidget);
+        checkBox_2->setObjectName(QStringLiteral("checkBox_2"));
+        checkBox_2->setGeometry(QRect(150, 590, 101, 17));
         label_8 = new QLabel(centralWidget);
         label_8->setObjectName(QStringLiteral("label_8"));
         label_8->setGeometry(QRect(30, 530, 47, 13));
@@ -283,10 +272,6 @@ public:
         label_15 = new QLabel(centralWidget);
         label_15->setObjectName(QStringLiteral("label_15"));
         label_15->setGeometry(QRect(720, 40, 16, 211));
-        ApplyCheckBox = new QCheckBox(centralWidget);
-        ApplyCheckBox->setObjectName(QStringLiteral("ApplyCheckBox"));
-        ApplyCheckBox->setGeometry(QRect(540, 0, 131, 17));
-        ApplyCheckBox->setChecked(true);
         MainWindow->setCentralWidget(centralWidget);
         ImageWindow->raise();
         horizontalSlider->raise();
@@ -317,7 +302,7 @@ public:
         label_5->raise();
         label_6->raise();
         label_7->raise();
-        MoveTogetherCheckBox->raise();
+        checkBox_2->raise();
         label_8->raise();
         textEdit->raise();
         radioButton->raise();
@@ -333,7 +318,6 @@ public:
         label_13->raise();
         label_14->raise();
         label_15->raise();
-        ApplyCheckBox->raise();
         menuBar = new QMenuBar(MainWindow);
         menuBar->setObjectName(QStringLiteral("menuBar"));
         menuBar->setGeometry(QRect(0, 0, 799, 21));
@@ -365,7 +349,7 @@ public:
         label_5->setText(QApplication::translate("MainWindow", "R", 0));
         label_6->setText(QApplication::translate("MainWindow", "G", 0));
         label_7->setText(QApplication::translate("MainWindow", "B", 0));
-        MoveTogetherCheckBox->setText(QApplication::translate("MainWindow", "MoveTogether", 0));
+        checkBox_2->setText(QApplication::translate("MainWindow", "MoveTogether", 0));
         label_8->setText(QApplication::translate("MainWindow", "Gamma", 0));
         label_9->setText(QApplication::translate("MainWindow", "Image Preview", 0));
         textEdit->setHtml(QApplication::translate("MainWindow", "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.0//EN\" \"http://www.w3.org/TR/REC-html40/strict.dtd\">\n"
@@ -411,7 +395,6 @@ public:
 "I\n"
 "O\n"
 "N", 0));
-        ApplyCheckBox->setText(QApplication::translate("MainWindow", "Apply each action", 0));
     } // retranslateUi
 
 };

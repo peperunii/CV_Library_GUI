@@ -13,7 +13,7 @@
 /* Creates new image, based on a prototype ( for width, height, Num of chanels and color space ) */
 struct Image	 CreateNewImage_BasedOnPrototype(struct Image *Prototype, struct Image *Img_dst);
 /* Creates new image. Specify width, height, number of channels and color space */
-struct Image	 CreateNewImage(struct Image *Img_dst, int Width, int Height, int NumChannels, int ColorSpace);
+struct Image	 CreateNewImage(struct Image *Img_dst, int Width, int Height, int NumChannels, int ColorSpace, int Depth);
 /* Set destination Image parameters to match the ones in source image */
 struct Image	 SetDestination(struct Image *Prototype, struct Image *Img_dst);
 /* Release the memory allocated by calling CreateNewImage */
@@ -87,6 +87,10 @@ struct Image	 CombineLayers(struct Image *Layers, struct Image *Img_dst, struct 
 struct Image 	 CreateMaskForLayers(struct Image *LayerPrototype, int MaskType, int NumberOfLayers);
 struct Image	 BlendImage(struct Image *Img_src, struct Image *Img_BlendedSrc, struct Image *Img_dst, float Percentage, int AlgoParam1, int AlgoParam2, int BlacOrWhiteThreshold);
 struct Image	 InverseImage0to255(struct Image *Img_src, struct Image *Img_dst);
-
-void Convert3ChannelsTo4Channels(struct Image *channels3, struct Image * channels4);
-void Convert4ChannelsTo3Channels(struct Image *channels4, struct Image * channels3);
+void			 SpatialToFrequencyDomain(struct Image *img_src, struct Image *img_dst);
+void             Convert3ChannelsTo4Channels(struct Image *channels3, struct Image * channels4);
+void             Convert4ChannelsTo3Channels(struct Image *channels4, struct Image * channels3);
+void			 HistogramForImage(struct Histogram *hist, struct Image *Img_src, short NumberOfLayers);
+void			 ConvertHistToImage(struct Histogram *hist, struct Image *Img_src);
+int              inverse_dft(long int length, int length2, long double real_sample[], long double imag_sample[], long double temp_real[], long double temp_imag[]);
+int              dft(long int length, int length2, long double real_sample[], long double imag_sample[], long double temp_real[], long double temp_imag[]);

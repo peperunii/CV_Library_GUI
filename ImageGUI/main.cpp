@@ -16,6 +16,10 @@ struct Image ScaledImage;
 struct Image InputImage;
 struct Image ScaledImage2;
 struct Image AppliedImage;
+struct Image HistogramImage_3Channels;
+struct Image HistogramImage_3Channels2;
+struct Image HistogramImage_4Channels;
+
 int ListOperations [700][6];
 int MousePos_X, MousePos_y;
 int CtrlKeyPressed;
@@ -96,7 +100,7 @@ void MainWindow::mousePressEvent(QMouseEvent *event)
 
             SetDestination(&ScaledImage, &ScaledImage2);
 
-            struct Image Scaled_3Channels = CreateNewImage(&Scaled_3Channels, ScaledImage.Width, ScaledImage.Height,3,3);
+            struct Image Scaled_3Channels = CreateNewImage(&Scaled_3Channels, ScaledImage.Width, ScaledImage.Height,3,3, 8);
             //convert from 4-channel ScaledImage to 3Channels - Scaled_3Channels
             Convert4ChannelsTo3Channels(&ScaledImage, &Scaled_3Channels);
 
@@ -383,7 +387,7 @@ void MainWindow::on_BrightnessSlider_sliderMoved(int position)
 {
     SetDestination(&ScaledImage, &ScaledImage2);
 
-    struct Image Scaled_3Channels = CreateNewImage(&Scaled_3Channels, ScaledImage.Width, ScaledImage.Height,3,3);
+    struct Image Scaled_3Channels = CreateNewImage(&Scaled_3Channels, ScaledImage.Width, ScaledImage.Height,3,3, 8);
     //convert from 4-channel ScaledImage to 3Channels - Scaled_3Channels
     Convert4ChannelsTo3Channels(&ScaledImage, &Scaled_3Channels);
 
@@ -391,7 +395,33 @@ void MainWindow::on_BrightnessSlider_sliderMoved(int position)
     struct Image Destination = CreateNewImage_BasedOnPrototype(&Scaled_3Channels, &Destination);
 
     BrightnessCorrection(&Scaled_3Channels,&Destination,position,1);
+    /*
+     * HISTOGRAM
+     */
+    struct Histogram hist;
+    ScaledImage.imageDepth = 8;
+    HistogramImage_3Channels = CreateNewImage_BasedOnPrototype(&Destination, &HistogramImage_3Channels);
+    HistogramImage_3Channels2 = CreateNewImage_BasedOnPrototype(&Destination, &HistogramImage_3Channels2);
+    HistogramImage_4Channels = CreateNewImage_BasedOnPrototype(&Destination, &HistogramImage_4Channels);
 
+    HistogramForImage(&hist, &Destination, 3);
+    ConvertHistToImage(&hist, &HistogramImage_3Channels);
+
+    ScaleImageToXY(&HistogramImage_3Channels, &HistogramImage_3Channels2, ui->label_16->width(), ui->label_16->height());
+    HistogramImage_4Channels.rgbpix = (unsigned char *)realloc(HistogramImage_4Channels.rgbpix, 4 * HistogramImage_3Channels2.Width * HistogramImage_3Channels2.Height * sizeof(unsigned char));
+    HistogramImage_4Channels.Height = ui->label_16->height();
+    HistogramImage_4Channels.Width = ui->label_16->width();
+    HistogramImage_4Channels.Num_channels = 4;
+    Convert3ChannelsTo4Channels(&HistogramImage_3Channels2, &HistogramImage_4Channels);
+
+    QImage Hysto = QImage(HistogramImage_4Channels.rgbpix, HistogramImage_4Channels.Width, HistogramImage_4Channels.Height,  QImage::Format_RGB32);
+    QPixmap pixmapObject2;
+    pixmapObject2.convertFromImage(Hysto);
+    ui->label_16->setPixmap(pixmapObject2);
+    //HistogramImage
+    /*
+     * End of histogram
+     */
     Convert3ChannelsTo4Channels(&Destination, &ScaledImage2);
 
     QImage Dest = QImage(ScaledImage2.rgbpix, ScaledImage2.Width, ScaledImage2.Height,  QImage::Format_RGB32);
@@ -417,7 +447,7 @@ void MainWindow::on_ContrastSlider_valueChanged(int value)
 {
     SetDestination(&ScaledImage, &ScaledImage2);
 
-    struct Image Scaled_3Channels = CreateNewImage(&Scaled_3Channels, ScaledImage.Width, ScaledImage.Height,3,3);
+    struct Image Scaled_3Channels = CreateNewImage(&Scaled_3Channels, ScaledImage.Width, ScaledImage.Height,3,3, 8);
     //convert from 4-channel ScaledImage to 3Channels - Scaled_3Channels
     Convert4ChannelsTo3Channels(&ScaledImage, &Scaled_3Channels);
 
@@ -425,6 +455,33 @@ void MainWindow::on_ContrastSlider_valueChanged(int value)
     struct Image Destination = CreateNewImage_BasedOnPrototype(&Scaled_3Channels, &Destination);
 
     ContrastCorrection(&Scaled_3Channels,&Destination,value);
+    /*
+     * HISTOGRAM
+     */
+    struct Histogram hist;
+    ScaledImage.imageDepth = 8;
+    HistogramImage_3Channels = CreateNewImage_BasedOnPrototype(&Destination, &HistogramImage_3Channels);
+    HistogramImage_3Channels2 = CreateNewImage_BasedOnPrototype(&Destination, &HistogramImage_3Channels2);
+    HistogramImage_4Channels = CreateNewImage_BasedOnPrototype(&Destination, &HistogramImage_4Channels);
+
+    HistogramForImage(&hist, &Destination, 3);
+    ConvertHistToImage(&hist, &HistogramImage_3Channels);
+
+    ScaleImageToXY(&HistogramImage_3Channels, &HistogramImage_3Channels2, ui->label_16->width(), ui->label_16->height());
+    HistogramImage_4Channels.rgbpix = (unsigned char *)realloc(HistogramImage_4Channels.rgbpix, 4 * HistogramImage_3Channels2.Width * HistogramImage_3Channels2.Height * sizeof(unsigned char));
+    HistogramImage_4Channels.Height = ui->label_16->height();
+    HistogramImage_4Channels.Width = ui->label_16->width();
+    HistogramImage_4Channels.Num_channels = 4;
+    Convert3ChannelsTo4Channels(&HistogramImage_3Channels2, &HistogramImage_4Channels);
+
+    QImage Hysto = QImage(HistogramImage_4Channels.rgbpix, HistogramImage_4Channels.Width, HistogramImage_4Channels.Height,  QImage::Format_RGB32);
+    QPixmap pixmapObject2;
+    pixmapObject2.convertFromImage(Hysto);
+    ui->label_16->setPixmap(pixmapObject2);
+    //HistogramImage
+    /*
+     * End of histogram
+     */
 
     Convert3ChannelsTo4Channels(&Destination, &ScaledImage2);
 
@@ -452,8 +509,8 @@ void MainWindow::on_horizontalSlider_sliderMoved(int position)
     //FILE *fp;
     QImage Dest;
     SetDestination(&ScaledImage, &ScaledImage2);
-    struct Image channel3_Image = CreateNewImage(&channel3_Image, ScaledImage.Width, ScaledImage.Height,3,2);
-    struct Image channel3_Image2 = CreateNewImage(&channel3_Image2, ScaledImage.Width, ScaledImage.Height,3,2);
+    struct Image channel3_Image = CreateNewImage(&channel3_Image, ScaledImage.Width, ScaledImage.Height,3,2, 8);
+    struct Image channel3_Image2 = CreateNewImage(&channel3_Image2, ScaledImage.Width, ScaledImage.Height,3,2, 8);
     struct WhitePoint WhitePoint_lab1;
 
 
@@ -539,7 +596,7 @@ void MainWindow::on_verticalSlider_4_valueChanged(int value)
 {
     SetDestination(&ScaledImage, &ScaledImage2);
 
-    struct Image Scaled_3Channels = CreateNewImage(&Scaled_3Channels, ScaledImage.Width, ScaledImage.Height,3,3);
+    struct Image Scaled_3Channels = CreateNewImage(&Scaled_3Channels, ScaledImage.Width, ScaledImage.Height,3,3, 8);
     //convert from 4-channel ScaledImage to 3Channels - Scaled_3Channels
     Convert4ChannelsTo3Channels(&ScaledImage, &Scaled_3Channels);
 
@@ -547,7 +604,33 @@ void MainWindow::on_verticalSlider_4_valueChanged(int value)
     struct Image Destination = CreateNewImage_BasedOnPrototype(&Scaled_3Channels, &Destination);
 
     Saturation(&Scaled_3Channels,&Destination,value);
+    /*
+     * HISTOGRAM
+     */
+    struct Histogram hist;
+    ScaledImage.imageDepth = 8;
+    HistogramImage_3Channels = CreateNewImage_BasedOnPrototype(&Destination, &HistogramImage_3Channels);
+    HistogramImage_3Channels2 = CreateNewImage_BasedOnPrototype(&Destination, &HistogramImage_3Channels2);
+    HistogramImage_4Channels = CreateNewImage_BasedOnPrototype(&Destination, &HistogramImage_4Channels);
 
+    HistogramForImage(&hist, &Destination, 3);
+    ConvertHistToImage(&hist, &HistogramImage_3Channels);
+
+    ScaleImageToXY(&HistogramImage_3Channels, &HistogramImage_3Channels2, ui->label_16->width(), ui->label_16->height());
+    HistogramImage_4Channels.rgbpix = (unsigned char *)realloc(HistogramImage_4Channels.rgbpix, 4 * HistogramImage_3Channels2.Width * HistogramImage_3Channels2.Height * sizeof(unsigned char));
+    HistogramImage_4Channels.Height = ui->label_16->height();
+    HistogramImage_4Channels.Width = ui->label_16->width();
+    HistogramImage_4Channels.Num_channels = 4;
+    Convert3ChannelsTo4Channels(&HistogramImage_3Channels2, &HistogramImage_4Channels);
+
+    QImage Hysto = QImage(HistogramImage_4Channels.rgbpix, HistogramImage_4Channels.Width, HistogramImage_4Channels.Height,  QImage::Format_RGB32);
+    QPixmap pixmapObject2;
+    pixmapObject2.convertFromImage(Hysto);
+    ui->label_16->setPixmap(pixmapObject2);
+    //HistogramImage
+    /*
+     * End of histogram
+     */
     Convert3ChannelsTo4Channels(&Destination, &ScaledImage2);
 
     QImage Dest = QImage(ScaledImage2.rgbpix, ScaledImage2.Width, ScaledImage2.Height,  QImage::Format_RGB32);
@@ -575,7 +658,7 @@ void MainWindow::on_BlurImageSlider_valueChanged(int value)
     Aggression = value;
     SetDestination(&ScaledImage, &ScaledImage2);
 
-    struct Image Scaled_3Channels = CreateNewImage(&Scaled_3Channels, ScaledImage.Width, ScaledImage.Height,3,3);
+    struct Image Scaled_3Channels = CreateNewImage(&Scaled_3Channels, ScaledImage.Width, ScaledImage.Height,3,3, 8);
     //convert from 4-channel ScaledImage to 3Channels - Scaled_3Channels
     Convert4ChannelsTo3Channels(&ScaledImage, &Scaled_3Channels);
 
@@ -619,7 +702,7 @@ void MainWindow::on_horizontalSlider_3_valueChanged(int value)
     }
     SetDestination(&ScaledImage, &ScaledImage2);
 
-    struct Image Scaled_3Channels = CreateNewImage(&Scaled_3Channels, ScaledImage.Width, ScaledImage.Height,3,3);
+    struct Image Scaled_3Channels = CreateNewImage(&Scaled_3Channels, ScaledImage.Width, ScaledImage.Height,3,3, 8);
     //convert from 4-channel ScaledImage to 3Channels - Scaled_3Channels
     Convert4ChannelsTo3Channels(&ScaledImage, &Scaled_3Channels);
 
@@ -627,7 +710,33 @@ void MainWindow::on_horizontalSlider_3_valueChanged(int value)
     struct Image Destination = CreateNewImage_BasedOnPrototype(&Scaled_3Channels, &Destination);
 
     GammaCorrection(&Scaled_3Channels,&Destination, RedGamma, GreenGamma, BlueGamma);
+    /*
+     * HISTOGRAM
+     */
+    struct Histogram hist;
+    ScaledImage.imageDepth = 8;
+    HistogramImage_3Channels = CreateNewImage_BasedOnPrototype(&Destination, &HistogramImage_3Channels);
+    HistogramImage_3Channels2 = CreateNewImage_BasedOnPrototype(&Destination, &HistogramImage_3Channels2);
+    HistogramImage_4Channels = CreateNewImage_BasedOnPrototype(&Destination, &HistogramImage_4Channels);
 
+    HistogramForImage(&hist, &Destination, 3);
+    ConvertHistToImage(&hist, &HistogramImage_3Channels);
+
+    ScaleImageToXY(&HistogramImage_3Channels, &HistogramImage_3Channels2, ui->label_16->width(), ui->label_16->height());
+    HistogramImage_4Channels.rgbpix = (unsigned char *)realloc(HistogramImage_4Channels.rgbpix, 4 * HistogramImage_3Channels2.Width * HistogramImage_3Channels2.Height * sizeof(unsigned char));
+    HistogramImage_4Channels.Height = ui->label_16->height();
+    HistogramImage_4Channels.Width = ui->label_16->width();
+    HistogramImage_4Channels.Num_channels = 4;
+    Convert3ChannelsTo4Channels(&HistogramImage_3Channels2, &HistogramImage_4Channels);
+
+    QImage Hysto = QImage(HistogramImage_4Channels.rgbpix, HistogramImage_4Channels.Width, HistogramImage_4Channels.Height,  QImage::Format_RGB32);
+    QPixmap pixmapObject2;
+    pixmapObject2.convertFromImage(Hysto);
+    ui->label_16->setPixmap(pixmapObject2);
+    //HistogramImage
+    /*
+     * End of histogram
+     */
     Convert3ChannelsTo4Channels(&Destination, &ScaledImage2);
 
     QImage Dest = QImage(ScaledImage2.rgbpix, ScaledImage2.Width, ScaledImage2.Height,  QImage::Format_RGB32);
@@ -666,7 +775,7 @@ void MainWindow::on_horizontalSlider_4_valueChanged(int value)
     }
     SetDestination(&ScaledImage, &ScaledImage2);
 
-    struct Image Scaled_3Channels = CreateNewImage(&Scaled_3Channels, ScaledImage.Width, ScaledImage.Height,3,3);
+    struct Image Scaled_3Channels = CreateNewImage(&Scaled_3Channels, ScaledImage.Width, ScaledImage.Height,3,3, 8);
     //convert from 4-channel ScaledImage to 3Channels - Scaled_3Channels
     Convert4ChannelsTo3Channels(&ScaledImage, &Scaled_3Channels);
 
@@ -674,7 +783,33 @@ void MainWindow::on_horizontalSlider_4_valueChanged(int value)
     struct Image Destination = CreateNewImage_BasedOnPrototype(&Scaled_3Channels, &Destination);
 
     GammaCorrection(&Scaled_3Channels,&Destination, RedGamma, GreenGamma, BlueGamma);
+    /*
+     * HISTOGRAM
+     */
+    struct Histogram hist;
+    ScaledImage.imageDepth = 8;
+    HistogramImage_3Channels = CreateNewImage_BasedOnPrototype(&Destination, &HistogramImage_3Channels);
+    HistogramImage_3Channels2 = CreateNewImage_BasedOnPrototype(&Destination, &HistogramImage_3Channels2);
+    HistogramImage_4Channels = CreateNewImage_BasedOnPrototype(&Destination, &HistogramImage_4Channels);
 
+    HistogramForImage(&hist, &Destination, 3);
+    ConvertHistToImage(&hist, &HistogramImage_3Channels);
+
+    ScaleImageToXY(&HistogramImage_3Channels, &HistogramImage_3Channels2, ui->label_16->width(), ui->label_16->height());
+    HistogramImage_4Channels.rgbpix = (unsigned char *)realloc(HistogramImage_4Channels.rgbpix, 4 * HistogramImage_3Channels2.Width * HistogramImage_3Channels2.Height * sizeof(unsigned char));
+    HistogramImage_4Channels.Height = ui->label_16->height();
+    HistogramImage_4Channels.Width = ui->label_16->width();
+    HistogramImage_4Channels.Num_channels = 4;
+    Convert3ChannelsTo4Channels(&HistogramImage_3Channels2, &HistogramImage_4Channels);
+
+    QImage Hysto = QImage(HistogramImage_4Channels.rgbpix, HistogramImage_4Channels.Width, HistogramImage_4Channels.Height,  QImage::Format_RGB32);
+    QPixmap pixmapObject2;
+    pixmapObject2.convertFromImage(Hysto);
+    ui->label_16->setPixmap(pixmapObject2);
+    //HistogramImage
+    /*
+     * End of histogram
+     */
     Convert3ChannelsTo4Channels(&Destination, &ScaledImage2);
 
     QImage Dest = QImage(ScaledImage2.rgbpix, ScaledImage2.Width, ScaledImage2.Height,  QImage::Format_RGB32);
@@ -714,7 +849,7 @@ void MainWindow::on_horizontalSlider_7_valueChanged(int value)
     }
     SetDestination(&ScaledImage, &ScaledImage2);
 
-    struct Image Scaled_3Channels = CreateNewImage(&Scaled_3Channels, ScaledImage.Width, ScaledImage.Height,3,3);
+    struct Image Scaled_3Channels = CreateNewImage(&Scaled_3Channels, ScaledImage.Width, ScaledImage.Height,3,3, 8);
     //convert from 4-channel ScaledImage to 3Channels - Scaled_3Channels
     Convert4ChannelsTo3Channels(&ScaledImage, &Scaled_3Channels);
 
@@ -722,7 +857,33 @@ void MainWindow::on_horizontalSlider_7_valueChanged(int value)
     struct Image Destination = CreateNewImage_BasedOnPrototype(&Scaled_3Channels, &Destination);
 
     GammaCorrection(&Scaled_3Channels,&Destination, RedGamma, GreenGamma, BlueGamma);
+    /*
+     * HISTOGRAM
+     */
+    struct Histogram hist;
+    ScaledImage.imageDepth = 8;
+    HistogramImage_3Channels = CreateNewImage_BasedOnPrototype(&Destination, &HistogramImage_3Channels);
+    HistogramImage_3Channels2 = CreateNewImage_BasedOnPrototype(&Destination, &HistogramImage_3Channels2);
+    HistogramImage_4Channels = CreateNewImage_BasedOnPrototype(&Destination, &HistogramImage_4Channels);
 
+    HistogramForImage(&hist, &Destination, 3);
+    ConvertHistToImage(&hist, &HistogramImage_3Channels);
+
+    ScaleImageToXY(&HistogramImage_3Channels, &HistogramImage_3Channels2, ui->label_16->width(), ui->label_16->height());
+    HistogramImage_4Channels.rgbpix = (unsigned char *)realloc(HistogramImage_4Channels.rgbpix, 4 * HistogramImage_3Channels2.Width * HistogramImage_3Channels2.Height * sizeof(unsigned char));
+    HistogramImage_4Channels.Height = ui->label_16->height();
+    HistogramImage_4Channels.Width = ui->label_16->width();
+    HistogramImage_4Channels.Num_channels = 4;
+    Convert3ChannelsTo4Channels(&HistogramImage_3Channels2, &HistogramImage_4Channels);
+
+    QImage Hysto = QImage(HistogramImage_4Channels.rgbpix, HistogramImage_4Channels.Width, HistogramImage_4Channels.Height,  QImage::Format_RGB32);
+    QPixmap pixmapObject2;
+    pixmapObject2.convertFromImage(Hysto);
+    ui->label_16->setPixmap(pixmapObject2);
+    //HistogramImage
+    /*
+     * End of histogram
+     */
     Convert3ChannelsTo4Channels(&Destination, &ScaledImage2);
 
     QImage Dest = QImage(ScaledImage2.rgbpix, ScaledImage2.Width, ScaledImage2.Height,  QImage::Format_RGB32);
@@ -766,6 +927,9 @@ void MainWindow::on_pushButton_clicked() // APPLY
 void MainWindow::on_pushButton_2_clicked() // RESET - //Reset to the previous APPLY
 {
     int i,j;
+    ui->horizontalSlider_3->setValue(10);
+    ui->horizontalSlider_4->setValue(10);
+    ui->horizontalSlider_7->setValue(10);
     ScaledImage.rgbpix = (unsigned char *)malloc(4 * InputImage.Width * InputImage.Height * sizeof(unsigned char));
     ScaledImage.Num_channels = 3;
     ScaledImage.Height = InputImage.Height;
@@ -780,6 +944,34 @@ void MainWindow::on_pushButton_2_clicked() // RESET - //Reset to the previous AP
     ScaledImage2 = CreateNewImage_BasedOnPrototype(&ScaledImage, &ScaledImage2);
     ScaleImageToXY(&ScaledImage, &ScaledImage2, ui->label_9->width(), ui->label_9->height());
     j = 0;
+
+    /*
+     * HISTOGRAM
+     */
+    struct Histogram hist;
+    ScaledImage.imageDepth = 8;
+    HistogramImage_3Channels = CreateNewImage_BasedOnPrototype(&ScaledImage2, &HistogramImage_3Channels);
+    HistogramImage_3Channels2 = CreateNewImage_BasedOnPrototype(&ScaledImage2, &HistogramImage_3Channels2);
+    HistogramImage_4Channels = CreateNewImage_BasedOnPrototype(&ScaledImage2, &HistogramImage_4Channels);
+
+    HistogramForImage(&hist, &ScaledImage, 3);
+    ConvertHistToImage(&hist, &HistogramImage_3Channels);
+
+    ScaleImageToXY(&HistogramImage_3Channels, &HistogramImage_3Channels2, ui->label_16->width(), ui->label_16->height());
+    HistogramImage_4Channels.rgbpix = (unsigned char *)realloc(HistogramImage_4Channels.rgbpix, 4 * HistogramImage_3Channels2.Width * HistogramImage_3Channels2.Height * sizeof(unsigned char));
+    HistogramImage_4Channels.Height = ui->label_16->height();
+    HistogramImage_4Channels.Width = ui->label_16->width();
+    HistogramImage_4Channels.Num_channels = 4;
+    Convert3ChannelsTo4Channels(&HistogramImage_3Channels2, &HistogramImage_4Channels);
+
+    QImage Hysto = QImage(HistogramImage_4Channels.rgbpix, HistogramImage_4Channels.Width, HistogramImage_4Channels.Height,  QImage::Format_RGB32);
+    QPixmap pixmapObject2;
+    pixmapObject2.convertFromImage(Hysto);
+    ui->label_16->setPixmap(pixmapObject2);
+    //HistogramImage
+    /*
+     * End of histogram
+     */
     ScaledImage.rgbpix = (unsigned char *)realloc(ScaledImage.rgbpix, 4 * ScaledImage2.Width * ScaledImage2.Height * sizeof(unsigned char));
     for(i = 0; i < 3  * ScaledImage2.Width * ScaledImage2.Height; i++)
     {
@@ -800,9 +992,7 @@ void MainWindow::on_pushButton_2_clicked() // RESET - //Reset to the previous AP
     ui->horizontalSlider->setSliderPosition(0);
     ui->verticalSlider_4->setSliderPosition(0);
     ui->BlurImageSlider->setSliderPosition(0);
-    ui->horizontalSlider_3->setValue(10);
-    ui->horizontalSlider_4->setValue(10);
-    ui->horizontalSlider_7->setValue(10);
+
 
     AppliedImage =  CreateNewImage_BasedOnPrototype(&InputImage, &AppliedImage);
     AppliedImage.rgbpix = (unsigned char *)malloc(4 * InputImage.Width * InputImage.Height * sizeof(unsigned char));
@@ -814,7 +1004,11 @@ void MainWindow::on_pushButton_2_clicked() // RESET - //Reset to the previous AP
 void MainWindow::on_pushButton_4_clicked() // LOAD
 {
     int i,j;
+    struct Histogram hist;
     //FILE *fp;
+    ui->horizontalSlider_3->setValue(10);
+    ui->horizontalSlider_4->setValue(10);
+    ui->horizontalSlider_7->setValue(10);
     Filename = QFileDialog::getOpenFileName(this,tr("Open Image file"),QDir::currentPath(),tr("Image files (*.jpg)"));
     ui->textEdit->setText(Filename);
     InputImage = ReadImage((char *)Filename.toUtf8().constData());
@@ -841,7 +1035,36 @@ void MainWindow::on_pushButton_4_clicked() // LOAD
     ScaledImage2 = CreateNewImage_BasedOnPrototype(&ScaledImage, &ScaledImage2);
     ScaleImageToXY(&ScaledImage, &ScaledImage2, ui->label_9->width(), ui->label_9->height());
     j = 0;
+
+    /*
+     * HISTOGRAM
+     */
+    ScaledImage.imageDepth = 8;
+    HistogramImage_3Channels = CreateNewImage_BasedOnPrototype(&ScaledImage2, &HistogramImage_3Channels);
+    HistogramImage_3Channels2 = CreateNewImage_BasedOnPrototype(&ScaledImage2, &HistogramImage_3Channels2);
+    HistogramImage_4Channels = CreateNewImage_BasedOnPrototype(&ScaledImage2, &HistogramImage_4Channels);
+
+    HistogramForImage(&hist, &ScaledImage, 3);
+    ConvertHistToImage(&hist, &HistogramImage_3Channels);
+
+    ScaleImageToXY(&HistogramImage_3Channels, &HistogramImage_3Channels2, ui->label_16->width(), ui->label_16->height());
+    HistogramImage_4Channels.rgbpix = (unsigned char *)realloc(HistogramImage_4Channels.rgbpix, 4 * HistogramImage_3Channels2.Width * HistogramImage_3Channels2.Height * sizeof(unsigned char));
+    HistogramImage_4Channels.Height = ui->label_16->height();
+    HistogramImage_4Channels.Width = ui->label_16->width();
+    HistogramImage_4Channels.Num_channels = 4;
+    Convert3ChannelsTo4Channels(&HistogramImage_3Channels2, &HistogramImage_4Channels);
+
+    QImage Hysto = QImage(HistogramImage_4Channels.rgbpix, HistogramImage_4Channels.Width, HistogramImage_4Channels.Height,  QImage::Format_RGB32);
+    QPixmap pixmapObject2;
+    pixmapObject2.convertFromImage(Hysto);
+    ui->label_16->setPixmap(pixmapObject2);
+    //HistogramImage
+    /*
+     * End of histogram
+     */
+
     ScaledImage.rgbpix = (unsigned char *)realloc(ScaledImage.rgbpix, 4 * ScaledImage2.Width * ScaledImage2.Height * sizeof(unsigned char));
+
     for(i = 0; i < 3  * ScaledImage2.Width * ScaledImage2.Height; i++)
     {
         ScaledImage.rgbpix[j++] = ScaledImage2.rgbpix[i];
@@ -851,6 +1074,7 @@ void MainWindow::on_pushButton_4_clicked() // LOAD
     ScaledImage.Num_channels = 4;
     ScaledImage.Width = ScaledImage2.Width;
     ScaledImage.Height = ScaledImage2.Height;
+
     QImage ScaledIm = QImage(ScaledImage.rgbpix, ScaledImage2.Width, ScaledImage2.Height,  QImage::Format_RGB32);
     QPixmap pixmapObject;
     pixmapObject.convertFromImage(ScaledIm);
@@ -862,9 +1086,7 @@ void MainWindow::on_pushButton_4_clicked() // LOAD
     ui->horizontalSlider->setSliderPosition(0); //action 3 - white balance
     ui->verticalSlider_4->setSliderPosition(0); //action 4 - Saturation
     ui->BlurImageSlider->setSliderPosition(0);
-    ui->horizontalSlider_3->setValue(10);
-    ui->horizontalSlider_4->setValue(10);
-    ui->horizontalSlider_7->setValue(10);
+
 
     /* Enable all butons and sliders */
     ui->BrightnessSlider->setEnabled(TRUE);
@@ -890,8 +1112,8 @@ void MainWindow::on_pushButton_3_clicked()  // SAVE
    struct point_xy poi;
    struct WhitePoint WhitePoint_lab1;
 
-   struct Image channel3_Image = CreateNewImage(&channel3_Image, InputImage.Width, InputImage.Height,3,2);
-   struct Image channel3_Image2 = CreateNewImage(&channel3_Image2, InputImage.Width, InputImage.Height,3,2);
+   struct Image channel3_Image = CreateNewImage(&channel3_Image, InputImage.Width, InputImage.Height,3,2, 8);
+   struct Image channel3_Image2 = CreateNewImage(&channel3_Image2, InputImage.Width, InputImage.Height,3,2, 8);
 
    SetWhiteBalanceValues(&WhitePoint_lab1, 7);
    Convert4ChannelsTo3Channels(&InputImage, &channel3_Image2);
@@ -1074,7 +1296,6 @@ struct Image ReadImage(char *FileName)
     InputImage.convertToFormat(QImage::Format_RGB32);
     //QImage::Format blqk = InputImage.format();
 
-
     //printf("\n\n%d\n\n",blqk);
     //Img_src.rgbpix = InputImage.scanLine(0);
     Img_src.rgbpix = (unsigned char *)malloc(4 * InputImage.width() *InputImage.height() * sizeof(unsigned char));
@@ -1082,6 +1303,8 @@ struct Image ReadImage(char *FileName)
     Img_src.Width = InputImage.width();
     Img_src.Height = InputImage.height();
     Img_src.Num_channels = 3;//InputImage.depth();
+    Img_src.ColorSpace = 2;
+    Img_src.imageDepth = 8;
 
 #endif // QT_LIBRARIES
 
@@ -1232,6 +1455,7 @@ struct Image read_Image_file(FILE * infile)
 
   /* TO  DELETE */
   Img_src.ColorSpace = 2;
+   Img_src.imageDepth = 8;
   /***************/
 
 
@@ -1320,6 +1544,7 @@ struct Image CreateNewImage_BasedOnPrototype(struct Image *Prototype, struct Ima
     Img_dst->Width = Prototype->Width;
     Img_dst->Num_channels = Prototype->Num_channels;
     Img_dst->ColorSpace = Prototype->ColorSpace;
+    Img_dst->imageDepth = Prototype->imageDepth;
 
     Img_dst->rgbpix = (unsigned char *)calloc(Img_dst->Height * Img_dst->Width * Img_dst->Num_channels, sizeof(unsigned char));
     if (Img_dst->rgbpix == NULL)
@@ -1338,13 +1563,14 @@ struct Image CreateNewImage_BasedOnPrototype(struct Image *Prototype, struct Ima
 /*
     C R E A T E -  New Image
 */
-struct Image CreateNewImage(struct Image *Img_dst, int Width, int Height, int NumChannels, int ColorSpace)
+struct Image CreateNewImage(struct Image *Img_dst, int Width, int Height, int NumChannels, int ColorSpace, int Depth)
 {
     FILE *fdebug = NULL;
     Img_dst->ColorSpace = ColorSpace;
     Img_dst->Height = Height;
     Img_dst->Width = Width;
     Img_dst->Num_channels = NumChannels;
+    Img_dst->imageDepth = Depth;
 
     /* If we have Binary or Grayscale image, NumChannels should be == 1*/
     if (ColorSpace < 2 && NumChannels != 1)
@@ -1383,6 +1609,8 @@ struct Image SetDestination(struct Image *Prototype, struct Image *Img_dst)
     Img_dst->Height = Prototype->Height;
     Img_dst->Width = Prototype->Width;
     Img_dst->Num_channels = Prototype->Num_channels;
+    Img_dst->imageDepth = Prototype->imageDepth;
+
     Img_dst->rgbpix = (unsigned char *)realloc(Img_dst->rgbpix, Img_dst->Height * Img_dst->Width * Img_dst->Num_channels* sizeof(unsigned char));
     if (Img_dst->rgbpix == NULL)
     {
@@ -1461,7 +1689,7 @@ struct Image  CreateMaskForLayers(struct Image *LayerPrototype, int MaskType, in
     int CurWidth, CurHeight = 0;
     if (MaskType < 1) MaskType = 1;
 
-    Mask = CreateNewImage(&Mask, LayerPrototype->Width, LayerPrototype->Height, 1, 1);
+    Mask = CreateNewImage(&Mask, LayerPrototype->Width, LayerPrototype->Height, 1, 1, 8);
 
     if (MaskType == 1)
     {
@@ -1971,7 +2199,7 @@ struct Image MorphErode(struct Image *Img_src, struct Image *Img_dst, int Elemen
 */
 struct Image MorphOpen(struct Image *Img_src, struct Image *Img_dst, int ElementSize, int NumberOfIterations)
 {
-    struct Image BackupImage = CreateNewImage(&BackupImage, Img_src->Width, Img_src->Height, 1, COLORSPACE_GRAYSCALE);
+    struct Image BackupImage = CreateNewImage(&BackupImage, Img_src->Width, Img_src->Height, 1, COLORSPACE_GRAYSCALE, 8);
 
     MorphErode(Img_src, Img_dst, ElementSize, NumberOfIterations);
     MorphDilate(Img_dst, &BackupImage, ElementSize, NumberOfIterations);
@@ -1989,7 +2217,7 @@ struct Image MorphOpen(struct Image *Img_src, struct Image *Img_dst, int Element
 */
 struct Image MorphClose(struct Image *Img_src, struct Image *Img_dst, int ElementSize, int NumberOfIterations)
 {
-    struct Image BackupImage = CreateNewImage(&BackupImage, Img_src->Width, Img_src->Height, 1, COLORSPACE_GRAYSCALE);
+    struct Image BackupImage = CreateNewImage(&BackupImage, Img_src->Width, Img_src->Height, 1, COLORSPACE_GRAYSCALE, 8);
 
     MorphDilate(Img_src, Img_dst, ElementSize, NumberOfIterations);
     MorphErode(Img_dst, &BackupImage, ElementSize, NumberOfIterations);
@@ -2008,8 +2236,8 @@ struct Image SharpImageContours(struct Image *Img_src, struct Image *Img_dst, fl
 {
     int i, j, l;
 
-    Image Img_dst_Grayscale = CreateNewImage(&Img_dst_Grayscale, Img_src->Width, Img_src->Height, 1, COLORSPACE_GRAYSCALE);
-    Image Img_src_Grayscale = CreateNewImage(&Img_src_Grayscale, Img_src->Width, Img_src->Height, 1, COLORSPACE_GRAYSCALE);
+    Image Img_dst_Grayscale = CreateNewImage(&Img_dst_Grayscale, Img_src->Width, Img_src->Height, 1, COLORSPACE_GRAYSCALE, 8);
+    Image Img_src_Grayscale = CreateNewImage(&Img_src_Grayscale, Img_src->Width, Img_src->Height, 1, COLORSPACE_GRAYSCALE, 8);
 
     if ((float)fabs((float)Percentage) > 1) Percentage /= 100;
     Percentage *= -1;
@@ -2850,13 +3078,13 @@ struct ArrPoints EdgeExtraction(struct Image *Img_src, struct Image *Img_dst, in
     int i, j, z, l;
     int NewX = 0, NewY = 0;
     struct ArrPoints ArrPts;
-    struct Image DerrivativeX = CreateNewImage(&DerrivativeX, Img_src->Width, Img_src->Height, 1, COLORSPACE_GRAYSCALE);
-    struct Image DerrivativeY = CreateNewImage(&DerrivativeY, Img_src->Width, Img_src->Height, 1, COLORSPACE_GRAYSCALE);
-    struct Image Magnitude = CreateNewImage(&Magnitude, Img_src->Width, Img_src->Height, 1, COLORSPACE_GRAYSCALE);
-    struct Image Magnitude2 = CreateNewImage(&Magnitude2, Img_src->Width, Img_src->Height, 1, COLORSPACE_GRAYSCALE);
-    struct Image Magnitude3 = CreateNewImage(&Magnitude3, Img_src->Width, Img_src->Height, 1, COLORSPACE_GRAYSCALE);
-    struct Image NMS = CreateNewImage(&NMS, Img_src->Width, Img_src->Height, 1, COLORSPACE_GRAYSCALE);
-    struct Image Hysteresis = CreateNewImage(&Hysteresis, Img_src->Width, Img_src->Height, 1, COLORSPACE_GRAYSCALE);
+    struct Image DerrivativeX = CreateNewImage(&DerrivativeX, Img_src->Width, Img_src->Height, 1, COLORSPACE_GRAYSCALE, 8);
+    struct Image DerrivativeY = CreateNewImage(&DerrivativeY, Img_src->Width, Img_src->Height, 1, COLORSPACE_GRAYSCALE, 8);
+    struct Image Magnitude = CreateNewImage(&Magnitude, Img_src->Width, Img_src->Height, 1, COLORSPACE_GRAYSCALE, 8);
+    struct Image Magnitude2 = CreateNewImage(&Magnitude2, Img_src->Width, Img_src->Height, 1, COLORSPACE_GRAYSCALE, 8);
+    struct Image Magnitude3 = CreateNewImage(&Magnitude3, Img_src->Width, Img_src->Height, 1, COLORSPACE_GRAYSCALE, 8);
+    struct Image NMS = CreateNewImage(&NMS, Img_src->Width, Img_src->Height, 1, COLORSPACE_GRAYSCALE, 8);
+    struct Image Hysteresis = CreateNewImage(&Hysteresis, Img_src->Width, Img_src->Height, 1, COLORSPACE_GRAYSCALE, 8);
 
     float Gx[] =
       { -1, 0, 1,
@@ -3393,7 +3621,7 @@ struct Image Saturation(struct Image *Img_src, struct Image *Img_dst, float perc
 {
     FILE * fdebug = NULL;
     int i, j;
-    struct Image WorkCopy = CreateNewImage(&WorkCopy, Img_src->Width, Img_src->Height, 3, Img_src->ColorSpace);
+    struct Image WorkCopy = CreateNewImage(&WorkCopy, Img_src->Width, Img_src->Height, 3, Img_src->ColorSpace, 8);
 
     /* If the input is RGB -> the output is also RGB. if the input is HSL -> the output is also HSL */
     if (Img_src->ColorSpace != 2 && Img_src->ColorSpace != 5)
@@ -3459,8 +3687,8 @@ struct Image BlendImage(struct Image *Img_src, struct Image *Img_BlendedSrc, str
 {
     int i, j, l;
 
-    Image Img_dst_Grayscale = CreateNewImage(&Img_dst_Grayscale, Img_src->Width, Img_src->Height, 1, COLORSPACE_GRAYSCALE);
-    Image Img_src_Grayscale = CreateNewImage(&Img_src_Grayscale, Img_src->Width, Img_src->Height, 1, COLORSPACE_GRAYSCALE);
+    Image Img_dst_Grayscale = CreateNewImage(&Img_dst_Grayscale, Img_src->Width, Img_src->Height, 1, COLORSPACE_GRAYSCALE, 8);
+    Image Img_src_Grayscale = CreateNewImage(&Img_src_Grayscale, Img_src->Width, Img_src->Height, 1, COLORSPACE_GRAYSCALE, 8);
 
     if (fabs(Percentage) > 1) Percentage /= 100;
     //Percentage *= -1;
@@ -3626,7 +3854,7 @@ struct Image ConvertToBinary(struct Image *Img_src, struct Image *Img_dst, int T
     int Sum = 0;
     int AverageGray = 0;
 
-    struct Image GrayImage = CreateNewImage(&GrayImage, Img_src->Width, Img_src->Height, 1, COLORSPACE_GRAYSCALE);
+    struct Image GrayImage = CreateNewImage(&GrayImage, Img_src->Width, Img_src->Height, 1, COLORSPACE_GRAYSCALE, 8);
 
     if (Img_src->Width * Img_src->Height != Img_dst->Width * Img_dst->Height)
     {
@@ -4074,7 +4302,7 @@ void Convert_XYZ_to_RGB(struct Image *Img_src, struct Image *Img_dst)
 void ConvertImage_RGB_to_LAB(struct Image *Img_src, struct Image *Img_dst, struct WhitePoint WhitePoint_XYZ)
 {
     FILE *fdebug = NULL;
-    struct Image Img_XYZ = CreateNewImage(&Img_XYZ,Img_src->Width, Img_src->Height, 3, 2);
+    struct Image Img_XYZ = CreateNewImage(&Img_XYZ,Img_src->Width, Img_src->Height, 3, 2, 8);
 
     int i, j;
     float L, a, b;
@@ -4217,7 +4445,7 @@ void ConvertImage_RGB_to_LAB(struct Image *Img_src, struct Image *Img_dst, struc
 void ConvertImage_LAB_to_RGB(struct Image *Img_src, struct Image *Img_dst, struct WhitePoint WhitePoint_XYZ)
 {
     FILE *fdebug = NULL;
-    struct Image Img_XYZ = CreateNewImage(&Img_XYZ, Img_src->Width, Img_src->Height, 3, 2);
+    struct Image Img_XYZ = CreateNewImage(&Img_XYZ, Img_src->Width, Img_src->Height, 3, 2, 8);
 
     int i, j;
     float L, a, b;
@@ -5104,3 +5332,696 @@ void WhitebalanceCorrectionBLUEorRED(struct Image *src, struct Image *dst, struc
         }
     }
 }
+
+/*
+    Create   H I S T O G R A M
+*/
+void HistogramForImage(struct Histogram *hist, struct Image *Img_src, short NumberOfLayers)
+{
+    //FILE * fp;
+    int i, j, z;
+    long int maxValue = 0;
+
+    struct Image grayscaledImage = CreateNewImage(&grayscaledImage, Img_src->Width, Img_src->Height, 1, 1, 8);
+    hist->Bins = pow(2, Img_src->imageDepth);
+
+    hist->NumberOfLayers = NumberOfLayers;
+
+    if (NumberOfLayers == 1)
+    {
+        /*if the image depth is 8bit -> we will have a histogram for 256 values*/
+        hist->values = (long int *)calloc(hist->Bins, sizeof(long int));
+
+        /* check if the input image is RGB or grayscaled. If it is RGB, convert to grayscaled */
+        if (Img_src->Num_channels == 1)
+        {
+            memcpy(grayscaledImage.rgbpix, Img_src->rgbpix, Img_src->Width* Img_src->Height * sizeof(unsigned char));
+        }
+        else
+        {
+            ConvertToGrayscale_1Channel(Img_src, &grayscaledImage);
+        }
+
+        /* Work with grayscaledImage */
+        for (i = 0; i < Img_src->Height; i++)
+        {
+            for (j = 0; j < Img_src->Width; j++)
+            {
+                hist->values[grayscaledImage.rgbpix[i * Img_src->Width + j]]++;
+                if (hist->values[grayscaledImage.rgbpix[i * Img_src->Width + j]] > maxValue)
+                    maxValue = hist->values[grayscaledImage.rgbpix[i * Img_src->Width + j]];
+            }
+        }
+    }
+    else
+    {
+        //if (Img_src->Num_channels != 3) return -1;
+
+        /*if the image depth is 8bit -> we will have a histogram for 256 * 3 values*/
+        hist->values = (long int *)calloc(3 *hist->Bins, sizeof(long int));
+
+        /* Work with colored imput image */
+        for (i = 0; i < Img_src->Height; i++)
+        {
+            for (j = 0; j < Img_src->Width; j++)
+            {
+                for (z = 0; z < 3; z++)
+                {
+                    hist->values[3 *(Img_src->rgbpix[3* (i * Img_src->Width + j) +z]) + z]++;
+                    if (hist->values[3 * (Img_src->rgbpix[3 * (i * Img_src->Width + j) + z]) + z] > maxValue)
+                        maxValue = hist->values[3 * (Img_src->rgbpix[3 * (i * Img_src->Width + j) + z]) + z];
+                }
+            }
+        }
+    }
+    /*
+    fopen_s(&fp, "blqk.txt", "wt");
+    for (i = 0; i < 256; i++)
+    {
+        fprintf(fp, "%ld: %ld\n", i, (hist->values[3 * i + 0]));
+    }
+    fprintf(fp, "\n\n");
+    for (i = 0; i < 256; i++)
+    {
+        fprintf(fp, "%ld: %ld\n", i, (hist->values[3 * i + 1]));
+    }
+
+    fprintf(fp, "\n\n");
+    for (i = 0; i < 256; i++)
+    {
+        fprintf(fp, "%ld: %ld\n", i, (hist->values[3 * i + 2]));
+    }
+
+    fclose(fp);
+    */
+    hist->MaxValue = maxValue;
+}
+
+/*
+    Convert  H I S TO G R A M   to  I M A G E
+*/
+void ConvertHistToImage(struct Histogram *hist, struct Image *Img_src)
+{
+    int i, j, k, z;
+    int write = 1;
+    float ScaleNumber = 0;
+    long int MaxValue = hist->MaxValue;
+    int Char_array[81];
+    int NumberofCalcs = 0;
+    int average;
+
+    /* Set size for the Hist Image */
+    if (hist->Bins == 256)
+    {
+        hist->Size_x = 2 * hist->Bins + 30;
+        if (MaxValue > 600) // we have to scale if it is too big
+        {
+            ScaleNumber = MaxValue / 600;
+            hist->Size_y = (MaxValue / ScaleNumber + 40);
+        }
+        else {
+            hist->Size_y = MaxValue + 40;
+            ScaleNumber = ((MaxValue + 40) / 600.0);
+        }
+    }
+
+    Img_src->Num_channels = hist->NumberOfLayers;
+    if (hist->NumberOfLayers == 3) Img_src->ColorSpace = 2;
+    else Img_src->ColorSpace = 1;
+
+    Img_src->rgbpix = (unsigned char *)realloc(Img_src->rgbpix, hist->NumberOfLayers * hist->Size_y * hist->Size_x * sizeof(unsigned char));
+    Img_src->Width = hist->Size_x;
+    Img_src->Height = hist->Size_y;
+
+    for (j = 0; j < hist->Size_x; j++)
+    {
+        for (i = hist->Size_y - 1;  i >= 0; i--)
+        {
+            for (k = 0; k < hist->NumberOfLayers; k++)
+            {
+                //if (Img_src->rgbpix[hist->NumberOfLayers * (i * hist->Size_x + j) + k] != 255)
+                Img_src->rgbpix[hist->NumberOfLayers * (i * hist->Size_x + j) + k] = 0;
+
+                if (i == 0 || j == 0 || j == hist->Size_x - 1 || i == hist->Size_y - 1)
+                {
+                    Img_src->rgbpix[hist->NumberOfLayers * (i * hist->Size_x + j) + k] = 255;
+                    continue;
+                }
+
+                if (j % 2 == 0)
+                {
+                    if ((j <= 2 * hist->Bins + 20) && j > 20) // ako e chetno
+                    {
+                        if (i > (hist->Size_y - 20 - (hist->values[hist->NumberOfLayers * ((j - 20) / 2) + k] / ScaleNumber)) && (i < hist->Size_y - 20))
+                        {
+                            Img_src->rgbpix[hist->NumberOfLayers * (i * hist->Size_x + j) + k] = 255;
+                        }
+                    }
+                }
+                else
+                {
+                    if ((j < 2 * hist->Bins + 20) && j > 20)
+                    {
+                        average = ((hist->values[hist->NumberOfLayers *((j - 19) / 2) + k] / ScaleNumber) + (hist->values[hist->NumberOfLayers * ((j - 21) / 2) + k] / ScaleNumber)) / 2;
+                        if (i >(hist->Size_y - 20 - (average)) && (i < hist->Size_y - 20))
+                        {
+                            Img_src->rgbpix[hist->NumberOfLayers * (i * hist->Size_x + j) + k] = 255;
+                        }
+                    }
+                    //Img_src->rgbpix[hist->NumberOfLayers * (i * hist->Size_x + j) + k] = 0;
+                }
+            }
+        }
+    }
+
+
+    for (k = MaxValue; k > 0; k--)
+    {
+        for (i = 0; i < 81; i++)
+        {
+            Char_array[i] = 0;
+        }
+        NumberofCalcs++;
+        write = k / 10;
+        write = k - (write * 10);
+        k =k /10;
+        if (write == 0)
+        {
+            Char_array[4] = 255;
+            Char_array[5] = 255;
+            Char_array[12] = 255;
+            Char_array[15] = 255;
+            Char_array[20] = 255;
+            Char_array[25] = 255;
+            Char_array[28] = 255;
+            Char_array[35] = 255;
+            Char_array[37] = 255;
+            Char_array[44] = 255;
+            Char_array[46] = 255;
+            Char_array[53] = 255;
+            Char_array[56] = 255;
+            Char_array[61] = 255;
+            Char_array[66] = 255;
+            Char_array[69] = 255;
+            Char_array[76] = 255;
+            Char_array[77] = 255;
+        }
+        else if(write == 1)
+        {
+            Char_array[20] = 255;
+            Char_array[12] = 255;
+            Char_array[4] = 255;
+            Char_array[5] = 255;
+            Char_array[13] = 255;
+            Char_array[14] = 255;
+            Char_array[22] = 255;
+            Char_array[23] = 255;
+            Char_array[31] = 255;
+            Char_array[32] = 255;
+            Char_array[40] = 255;
+            Char_array[41] = 255;
+            Char_array[49] = 255;
+            Char_array[50] = 255;
+            Char_array[58] = 255;
+            Char_array[59] = 255;
+            Char_array[67] = 255;
+            Char_array[68] = 255;
+            Char_array[69] = 255;
+            Char_array[66] = 255;
+        }
+        else if (write == 2)
+        {
+            Char_array[10] = 255;
+            Char_array[2] = 255;
+            Char_array[3] = 255;
+            Char_array[4] = 255;
+            Char_array[5] = 255;
+            Char_array[6] = 255;
+            Char_array[15] = 255;
+            Char_array[24] = 255;
+            Char_array[32] = 255;
+            Char_array[40] = 255;
+            Char_array[48] = 255;
+            Char_array[56] = 255;
+            Char_array[64] = 255;
+            Char_array[65] = 255;
+            Char_array[66] = 255;
+            Char_array[67] = 255;
+            Char_array[68] = 255;
+            Char_array[69] = 255;
+        }
+        else if (write == 3)
+        {
+            Char_array[11] = 255;
+            Char_array[3]  = 255;
+            Char_array[4]  = 255;
+            Char_array[14] = 255;
+            Char_array[24] = 255;
+            Char_array[32] = 255;
+            Char_array[40] = 255;
+            Char_array[50] = 255;
+            Char_array[60] = 255;
+            Char_array[68] = 255;
+            Char_array[76] = 255;
+            Char_array[75] = 255;
+            Char_array[65] = 255;
+        }
+        else if (write == 4)
+        {
+            Char_array[5] = 255;
+            Char_array[13] = 255;
+            Char_array[21] = 255;
+            Char_array[29] = 255;
+            Char_array[37] = 255;
+            Char_array[38] = 255;
+            Char_array[39] = 255;
+            Char_array[40] = 255;
+            Char_array[41] = 255;
+            Char_array[42] = 255;
+            Char_array[43] = 255;
+            Char_array[34] = 255;
+            Char_array[25] = 255;
+            Char_array[16] = 255;
+            Char_array[52] = 255;
+            Char_array[61] = 255;
+            Char_array[70] = 255;
+            Char_array[79] = 255;
+        }
+        else if (write == 5)
+        {
+            Char_array[10] = 255;
+            Char_array[2] = 255;
+            Char_array[3] = 255;
+            Char_array[4] = 255;
+            Char_array[5] = 255;
+            Char_array[6] = 255;
+            Char_array[19] = 255;
+            Char_array[28] = 255;
+            Char_array[37] = 255;
+            Char_array[38] = 255;
+            Char_array[39] = 255;
+            Char_array[40] = 255;
+            Char_array[41] = 255;
+            Char_array[42] = 255;
+            Char_array[43] = 255;
+            Char_array[52] = 255;
+            Char_array[61] = 255;
+            Char_array[70] = 255;
+            Char_array[69] = 255;
+            Char_array[68] = 255;
+            Char_array[67] = 255;
+            Char_array[66] = 255;
+            Char_array[65] = 255;
+            Char_array[64] = 255;
+        }
+        else if (write == 6)
+        {
+            Char_array[4] = 255;
+            Char_array[5] = 255;
+            Char_array[12] = 255;
+            Char_array[15] = 255;
+            Char_array[20] = 255;
+            Char_array[28] = 255;
+            Char_array[37] = 255;
+            Char_array[46] = 255;
+            Char_array[56] = 255;
+            Char_array[66] = 255;
+            Char_array[76] = 255;
+            Char_array[77] = 255;
+            Char_array[69] = 255;
+            Char_array[61] = 255;
+            Char_array[51] = 255;
+            Char_array[41] = 255;
+            Char_array[40] = 255;
+            Char_array[48] = 255;
+        }
+        else if (write == 7)
+        {
+            Char_array[2] = 255;
+            Char_array[3] = 255;
+            Char_array[4] = 255;
+            Char_array[5] = 255;
+            Char_array[6] = 255;
+            Char_array[7] = 255;
+            Char_array[16] = 255;
+            Char_array[24] = 255;
+            Char_array[33] = 255;
+            Char_array[41] = 255;
+            Char_array[50] = 255;
+            Char_array[58] = 255;
+            Char_array[67] = 255;
+            Char_array[75] = 255;
+        }
+        else if (write == 8)
+        {
+            Char_array[3] = 255;
+            Char_array[4] = 255;
+            Char_array[11] = 255;
+            Char_array[14] = 255;
+            Char_array[19] = 255;
+            Char_array[24] = 255;
+            Char_array[29] = 255;
+            Char_array[32] = 255;
+            Char_array[39] = 255;
+            Char_array[40] = 255;
+            Char_array[47] = 255;
+            Char_array[50] = 255;
+            Char_array[55] = 255;
+            Char_array[60] = 255;
+            Char_array[65] = 255;
+            Char_array[68] = 255;
+            Char_array[75] = 255;
+            Char_array[76] = 255;
+        }
+        else if (write == 9)
+        {
+            Char_array[3] = 255;
+            Char_array[4] = 255;
+            Char_array[11] = 255;
+            Char_array[14] = 255;
+            Char_array[19] = 255;
+            Char_array[24] = 255;
+            Char_array[29] = 255;
+            Char_array[32] = 255;
+            Char_array[39] = 255;
+            Char_array[40] = 255;
+            Char_array[33] = 255;
+            Char_array[42] = 255;
+            Char_array[51] = 255;
+            Char_array[60] = 255;
+            Char_array[69] = 255;
+            Char_array[77] = 255;
+            Char_array[76] = 255;
+            Char_array[75] = 255;
+        }
+        for (j = 0; j < 9; j++)
+        {
+            for (i = 0; i < 9; i++)
+            {
+                for (z = 0; z < hist->NumberOfLayers; z++)
+                {
+                    Img_src->rgbpix[hist->NumberOfLayers * ((15 + i) * hist->Size_x + (hist->Size_x / 2) - (10 * NumberofCalcs) + j) + z] = Char_array[i * 9 + j];
+                }
+            }
+        }
+    }
+
+    /* write 0*/
+    for (i = 0; i < 81; i++)
+    {
+        Char_array[i] = 0;
+    }
+    Char_array[4] = 255;
+    Char_array[5] = 255;
+    Char_array[12] = 255;
+    Char_array[15] = 255;
+    Char_array[20] = 255;
+    Char_array[25] = 255;
+    Char_array[28] = 255;
+    Char_array[35] = 255;
+    Char_array[37] = 255;
+    Char_array[44] = 255;
+    Char_array[46] = 255;
+    Char_array[53] = 255;
+    Char_array[56] = 255;
+    Char_array[61] = 255;
+    Char_array[66] = 255;
+    Char_array[69] = 255;
+    Char_array[76] = 255;
+    Char_array[77] = 255;
+
+    for (j = 0; j < 9; j++)
+    {
+        for (i = 0; i < 9; i++)
+        {
+            for (k = 0; k < hist->NumberOfLayers; k++)
+            {
+                Img_src->rgbpix[hist->NumberOfLayers * ((hist->Size_y - 15 + i) * hist->Size_x + 10 + j) + k] = Char_array[i * 9 + j];
+            }
+        }
+    }
+
+    /* write 2*/
+    for (i = 0; i < 81; i++)
+    {
+        Char_array[i] = 0;
+    }
+    Char_array[10] = 255;
+    Char_array[2] = 255;
+    Char_array[3] = 255;
+    Char_array[4] = 255;
+    Char_array[5] = 255;
+    Char_array[6] = 255;
+    Char_array[15] = 255;
+    Char_array[24] = 255;
+    Char_array[32] = 255;
+    Char_array[40] = 255;
+    Char_array[48] = 255;
+    Char_array[56] = 255;
+    Char_array[64] = 255;
+    Char_array[65] = 255;
+    Char_array[66] = 255;
+    Char_array[67] = 255;
+    Char_array[68] = 255;
+    Char_array[69] = 255;
+
+    for (j = 0; j < 9; j++)
+    {
+        for (i = 0; i < 9; i++)
+        {
+            for (k = 0; k < hist->NumberOfLayers; k++)
+            {
+                Img_src->rgbpix[hist->NumberOfLayers * ((hist->Size_y - 15 + i) * hist->Size_x + hist->Size_x - 40 + j) + k] = Char_array[i * 9 + j];
+            }
+        }
+    }
+
+    /* write 5*/
+    for (i = 0; i < 81; i++)
+    {
+        Char_array[i] = 0;
+    }
+    Char_array[10] = 255;
+    Char_array[2] = 255;
+    Char_array[3] = 255;
+    Char_array[4] = 255;
+    Char_array[5] = 255;
+    Char_array[6] = 255;
+    Char_array[19] = 255;
+    Char_array[28] = 255;
+    Char_array[37] = 255;
+    Char_array[38] = 255;
+    Char_array[39] = 255;
+    Char_array[40] = 255;
+    Char_array[41] = 255;
+    Char_array[42] = 255;
+    Char_array[43] = 255;
+    Char_array[52] = 255;
+    Char_array[61] = 255;
+    Char_array[70] = 255;
+    Char_array[69] = 255;
+    Char_array[68] = 255;
+    Char_array[67] = 255;
+    Char_array[66] = 255;
+    Char_array[65] = 255;
+    Char_array[64] = 255;
+
+    for (j = 0; j < 9; j++)
+    {
+        for (i = 0; i < 9; i++)
+        {
+            for (k = 0; k < hist->NumberOfLayers; k++)
+            {
+                Img_src->rgbpix[hist->NumberOfLayers * ((hist->Size_y - 15 + i) * hist->Size_x + hist->Size_x - 30 + j) + k] = Char_array[i * 9 + j];
+                Img_src->rgbpix[hist->NumberOfLayers * ((hist->Size_y - 15 + i) * hist->Size_x + hist->Size_x - 20 + j) + k] = Char_array[i * 9 + j];
+            }
+        }
+    }
+
+}
+
+
+
+
+int dft(long int length, int length2, long double real_sample[], long double imag_sample[], long double temp_real[], long double temp_imag[])
+{
+    long int i, j, k, l;
+    long double arg;
+    long double CurrentValCalcs;
+    long double cosarg, sinarg;
+    double radius;
+    double Pitagor;
+    //long double *temp_real = NULL, *temp_imag = NULL;
+
+    //temp_real = calloc(length * length2, sizeof(long double));
+    //temp_imag = calloc(length * length2, sizeof(long double));
+    //if (temp_real == NULL || temp_imag == NULL)
+    //{
+    //	return(FALSE);
+    //}
+
+    radius = length2 / 2 - (0.35 * length2 / 2);
+
+    for (k = 0; k < length; k += 1)
+    {
+        for (l = 0; l < length2; l += 1)
+        {
+
+            Pitagor = sqrt(pow((length2 / 2 - l), 2) + pow((length / 2 - k), 2));
+            if (Pitagor > (MIN(length, length2) - 3) )
+            {
+                temp_real[k * length2 + l] = 0;
+                temp_imag[k * length2 + l] = 0;
+                continue;
+            }
+
+            temp_real[k * length2 + l] = 0;
+            temp_imag[k * length2 + l] = 0;
+            for (i = 0; i < length; i += 1)
+            {
+                for (j = 0; j < length2; j += 1)
+                {
+                    arg = -1.0 * 2.0 * 3.141592654 * ((long double)(i * k) / (long double)length + (long double)(j * l) / (long double)length2);
+
+                    cosarg = cos(arg);
+                    sinarg = sin(arg);
+                    temp_real[k * length2 + l] += (real_sample[i * length2 + j] * cosarg - imag_sample[i * length2 + j] * sinarg);
+                    temp_imag[k * length2 + l] += (real_sample[i * length2 + j] * sinarg + imag_sample[i * length2 + j] * cosarg);
+                }
+            }
+        }
+    }
+
+
+    for (i = 0; i<length * length2; i += 1)
+    {
+        real_sample[i] = temp_real[i];
+        imag_sample[i] = temp_imag[i];
+    }
+
+    //free(temp_real);
+    //free(temp_imag);
+    return(TRUE);
+}
+
+
+
+//Inverse Discrete Fourier Transform
+
+
+int inverse_dft(long int length, int length2, long double real_sample[], long double imag_sample[], long double temp_real[], long double temp_imag[])
+{
+    long int i, j, k, l;
+    long double arg;
+    long double cosarg, sinarg;
+    //long double *temp_real = NULL, *temp_imag = NULL;
+
+    //temp_real = calloc(length * length2, sizeof(long double));
+    //temp_imag = calloc(length * length2, sizeof(long double));
+    //if (temp_real == NULL || temp_imag == NULL)
+    //{
+    //	return(FALSE);
+    //}
+
+    for (k = 0; k < length; k += 1)
+    {
+        for (l = 0; l < length2; l += 1)
+        {
+            temp_real[k * length2 + l] = 0;
+            temp_imag[k * length2 + l] = 0;
+            for (i = 0; i < length; i += 1)
+            {
+                //arg = 2.0 * 3.141592654 * (long double)i / (long double)length;
+                for (j = 0; j < length2; j += 1)
+                {
+                    arg = 2.0 * 3.141592654 * ((long double)(i * k) / (long double)length + (long double)(j * l) / (long double)length2);
+
+                    cosarg = cos(arg);
+                    sinarg = sin(arg);
+                    temp_real[k * length2 + l] += (real_sample[i * length2 + j] * cosarg - imag_sample[i * length2 + j] * sinarg);
+                    temp_imag[k * length2 + l] += (real_sample[i * length2 + j] * sinarg + imag_sample[i * length2 + j] * cosarg);
+                }
+            }
+        }
+    }
+
+
+    for (i = 0; i<length * length2; i += 1)
+    {
+        real_sample[i] = temp_real[i] / (long double)(length * length2);
+        imag_sample[i] = temp_imag[i] / (long double)(length * length2);
+    }
+
+    //free(temp_real);
+    //free(temp_imag);
+    return(TRUE);
+}
+
+
+void SpatialToFrequencyDomain(struct Image *img_src, struct Image *img_dst)
+{
+    // perform DFT
+    // The number of frequencies corresponds to the number of pixels in the spatial domain image, i.e. the image in the spatial and Fourier domain are of the same size.
+    // Formula is published here: http://homepages.inf.ed.ac.uk/rbf/HIPR2/fourier.htm
+
+    long double* dr = NULL;
+    long double* di = NULL;
+    long double* fr = NULL;
+    long double* fi = NULL;
+
+    int i, j, k, l, z;
+    float MATH_PI = 3.14;
+    long double CurrentValCalcs = 0;
+    long double CurrentValCalcs2 = 0;
+    //_Complex double ui = 0;
+    int Min = 655035, Max = 0;
+    int Width = img_src->Width;
+    int Height = img_src->Height;
+    long double *Arr_calc = NULL;
+    long double *Arr_calc2 = NULL;
+    long double *Arr_calc3 = NULL;
+    long double *Arr_calc4 = NULL;
+    int broi = 0;
+    //struct Image Mapping = CreateNewImage(&Mapping, img_src->Width, img_src->Height, 1, 1, 8);
+    struct Image grayscaledImage = CreateNewImage(&grayscaledImage, img_src->Width, img_src->Height, 1, 1, 8);
+
+    Arr_calc = (long double *)malloc(img_src->Width * img_src->Height * sizeof(long double));
+    Arr_calc2 = (long double *)malloc(img_src->Width * img_src->Height * sizeof(long double));
+    Arr_calc3 = (long double *)malloc(img_src->Width * img_src->Height * sizeof(long double));
+    Arr_calc4 = (long double *)malloc(img_src->Width * img_src->Height * sizeof(long double));
+
+    if (img_src->Num_channels != 1) ConvertToGrayscale_1Channel(img_src, &grayscaledImage);
+    else memcpy(grayscaledImage.rgbpix, img_src->rgbpix, img_src->Width * img_src->Height * sizeof(unsigned char));
+
+    if (grayscaledImage.Width * grayscaledImage.Height != img_dst->Width * img_dst->Height)
+    {
+        SetDestination(&grayscaledImage, img_dst);
+    }
+
+    dr = (long double *)malloc(grayscaledImage.Width * grayscaledImage.Height * sizeof(long double));
+    di = (long double *)malloc(grayscaledImage.Width * grayscaledImage.Height * sizeof(long double));
+    fr = (long double *)malloc(grayscaledImage.Width * grayscaledImage.Height * sizeof(long double));
+    fi = (long double *)malloc(grayscaledImage.Width * grayscaledImage.Height * sizeof(long double));
+
+    for (i = 0; i < grayscaledImage.Height * grayscaledImage.Width; i++)
+    {
+        di[i] = 0;
+        dr[i] = grayscaledImage.rgbpix[i];
+    }
+
+    dft(grayscaledImage.Height , grayscaledImage.Width, dr, di, fr, fi);
+    inverse_dft(grayscaledImage.Height , grayscaledImage.Width, dr, di, fr, fi);
+
+    for (i = 0; i < grayscaledImage.Height * grayscaledImage.Width; i++)
+    {
+        if (dr[i] < 0) dr[i] = 0;
+        if (dr[i] > 255) dr[i] = 255;
+        img_dst->rgbpix[i] = RoundValue_toX_SignificantBits(dr[i], 0);
+    }
+
+    free(fr);
+    free(fi);
+    free(dr);
+    free(di);
+}
+
